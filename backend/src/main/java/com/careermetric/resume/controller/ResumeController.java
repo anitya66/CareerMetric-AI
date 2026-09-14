@@ -1,41 +1,30 @@
 package com.careermetric.resume.controller;
 
 import com.careermetric.common.dto.ApiResponse;
+import com.careermetric.resume.dto.ResumeAnalysisResponse;
 import com.careermetric.resume.dto.ResumeDetailResponse;
 import com.careermetric.resume.dto.ResumeResponse;
 import com.careermetric.resume.service.ResumeService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/resumes")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(
-        name = "Resumes",
-        description = "Resume management endpoints"
-)
 public class ResumeController {
 
     private final ResumeService resumeService;
 
-    public ResumeController(
-            ResumeService resumeService
-    ) {
+    public ResumeController(ResumeService resumeService) {
         this.resumeService = resumeService;
     }
 
-    @PostMapping(consumes = "multipart/form-data")
+    @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(
-            summary = "Upload a resume",
-            description = "Uploads a PDF or DOCX resume for the authenticated user"
-    )
     public ApiResponse<ResumeResponse> uploadResume(
             @RequestParam("file") MultipartFile file
     ) {
@@ -50,48 +39,65 @@ public class ResumeController {
     }
 
     @GetMapping
-    @Operation(
-            summary = "Get my resumes",
-            description = "Returns all resumes belonging to the authenticated user"
-    )
     public ApiResponse<List<ResumeResponse>> getMyResumes() {
+
+        List<ResumeResponse> resumes =
+                resumeService.getMyResumes();
 
         return ApiResponse.success(
                 "Resumes retrieved successfully",
-                resumeService.getMyResumes()
+                resumes
         );
     }
 
     @GetMapping("/{resumeId}")
-    @Operation(
-            summary = "Get my resume",
-            description = "Returns a specific resume belonging to the authenticated user"
-    )
     public ApiResponse<ResumeDetailResponse> getMyResume(
             @PathVariable Long resumeId
     ) {
 
+        ResumeDetailResponse response =
+                resumeService.getMyResume(resumeId);
+
         return ApiResponse.success(
                 "Resume retrieved successfully",
-                resumeService.getMyResume(resumeId)
+                response
+        );
+    }
+
+    @PostMapping("/{resumeId}/analyze")
+    public ApiResponse<ResumeAnalysisResponse> analyzeResume(
+            @PathVariable Long resumeId
+    ) {
+
+        ResumeAnalysisResponse response =
+                resumeService.analyzeMyResume(resumeId);
+
+        return ApiResponse.success(
+                "Resume analyzed successfully",
+                response
+        );
+    }
+
+    @GetMapping("/{resumeId}/analysis")
+    public ApiResponse<ResumeAnalysisResponse> getResumeAnalysis(
+            @PathVariable Long resumeId
+    ) {
+
+        ResumeAnalysisResponse response =
+                resumeService.getMyResumeAnalysis(resumeId);
+
+        return ApiResponse.success(
+                "Resume analysis retrieved successfully",
+                response
         );
     }
 
     @DeleteMapping("/{resumeId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(
-            summary = "Delete my resume",
-            description = "Deletes a resume belonging to the authenticated user"
-    )
-    public ApiResponse<Void> deleteMyResume(
+    public void deleteMyResume(
             @PathVariable Long resumeId
     ) {
 
         resumeService.deleteMyResume(resumeId);
-
-        return ApiResponse.success(
-                "Resume deleted successfully",
-                null
-        );
     }
 }

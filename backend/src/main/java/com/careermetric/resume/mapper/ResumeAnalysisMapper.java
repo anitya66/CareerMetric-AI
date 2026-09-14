@@ -21,6 +21,9 @@ public class ResumeAnalysisMapper {
         this.objectMapper = objectMapper;
     }
 
+    /*
+     * Converts a new AI analysis result into a ResumeAnalysis entity.
+     */
     public ResumeAnalysis toEntity(
             Resume resume,
             ResumeAnalysisAiResult aiResult,
@@ -31,6 +34,7 @@ public class ResumeAnalysisMapper {
         ResumeAnalysis analysis = new ResumeAnalysis();
 
         analysis.setResume(resume);
+
         analysis.setOverallScore(overallScore);
 
         analysis.setScoreBreakdown(
@@ -41,11 +45,25 @@ public class ResumeAnalysisMapper {
                 )
         );
 
-        analysis.setSummary(aiResult.summary());
-        analysis.setStrengths(aiResult.strengths());
-        analysis.setWeaknesses(aiResult.weaknesses());
-        analysis.setMissingElements(aiResult.missingElements());
-        analysis.setSuggestions(aiResult.suggestions());
+        analysis.setSummary(
+                aiResult.summary()
+        );
+
+        analysis.setStrengths(
+                aiResult.strengths()
+        );
+
+        analysis.setWeaknesses(
+                aiResult.weaknesses()
+        );
+
+        analysis.setMissingElements(
+                aiResult.missingElements()
+        );
+
+        analysis.setSuggestions(
+                aiResult.suggestions()
+        );
 
         analysis.setSections(
                 objectMapper.convertValue(
@@ -58,6 +76,63 @@ public class ResumeAnalysisMapper {
         return analysis;
     }
 
+    /*
+     * Updates an existing ResumeAnalysis entity.
+     *
+     * Used when the user analyzes the same resume again.
+     */
+    public void updateEntity(
+            ResumeAnalysis analysis,
+            ResumeAnalysisAiResult aiResult,
+            Integer overallScore,
+            ScoreBreakdown scoreBreakdown
+    ) {
+
+        analysis.setOverallScore(
+                overallScore
+        );
+
+        analysis.setScoreBreakdown(
+                objectMapper.convertValue(
+                        scoreBreakdown,
+                        new TypeReference<Map<String, Integer>>() {
+                        }
+                )
+        );
+
+        analysis.setSummary(
+                aiResult.summary()
+        );
+
+        analysis.setStrengths(
+                aiResult.strengths()
+        );
+
+        analysis.setWeaknesses(
+                aiResult.weaknesses()
+        );
+
+        analysis.setMissingElements(
+                aiResult.missingElements()
+        );
+
+        analysis.setSuggestions(
+                aiResult.suggestions()
+        );
+
+        analysis.setSections(
+                objectMapper.convertValue(
+                        aiResult.sections(),
+                        new TypeReference<Map<String, Object>>() {
+                        }
+                )
+        );
+    }
+
+    /*
+     * Converts the persisted ResumeAnalysis entity
+     * into the API response returned to the frontend.
+     */
     public ResumeAnalysisResponse toResponse(
             ResumeAnalysis analysis
     ) {
