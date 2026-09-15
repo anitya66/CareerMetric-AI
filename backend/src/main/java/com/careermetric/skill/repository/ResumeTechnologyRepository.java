@@ -23,5 +23,10 @@ public interface ResumeTechnologyRepository
             Long technologyId
     );
 
+    boolean existsByResumeUserIdAndTechnologyId(
+        Long userId,
+        Long technologyId
+    );
+
     void deleteAllByResumeId(Long resumeId);
 }

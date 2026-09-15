@@ -1,13 +1,16 @@
 package com.careermetric.skill.service;
 
 import com.careermetric.security.service.CurrentUserService;
+import com.careermetric.skill.dto.SkillDashboardResponse;
 import com.careermetric.skill.dto.SkillResponse;
 import com.careermetric.skill.entity.ResumeTechnology;
+import com.careermetric.skill.entity.TechnologyCategory;
 import com.careermetric.skill.repository.ResumeTechnologyRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +64,9 @@ public class SkillServiceImpl implements SkillService {
             }
 
             Long technologyId =
-                    resumeTechnology.getTechnology().getId();
+                    resumeTechnology
+                            .getTechnology()
+                            .getId();
 
             SkillResponse existingSkill =
                     skillsByTechnology.get(technologyId);
@@ -145,6 +150,7 @@ public class SkillServiceImpl implements SkillService {
                         .toList();
 
         if (matchingTechnologies.isEmpty()) {
+
             throw new IllegalArgumentException(
                     "Skill not found"
             );
@@ -177,6 +183,51 @@ public class SkillServiceImpl implements SkillService {
                 first.getTechnology().getName(),
                 first.getTechnology().getCategory(),
                 evidence
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SkillDashboardResponse getMySkillDashboard() {
+
+        List<SkillResponse> skills =
+                getMySkills();
+
+        /*
+         * Start every category with zero.
+         *
+         * This gives the frontend a predictable structure,
+         * even when a category has no skills.
+         */
+        Map<TechnologyCategory, Integer> categoryCounts =
+                new EnumMap<>(TechnologyCategory.class);
+
+        for (TechnologyCategory category
+                : TechnologyCategory.values()) {
+
+            categoryCounts.put(category, 0);
+        }
+
+        /*
+         * Count unique technologies by category.
+         */
+        for (SkillResponse skill : skills) {
+
+            if (skill.category() == null) {
+                continue;
+            }
+
+            categoryCounts.merge(
+                    skill.category(),
+                    1,
+                    Integer::sum
+            );
+        }
+
+        return new SkillDashboardResponse(
+                skills.size(),
+                categoryCounts,
+                skills
         );
     }
 

@@ -1,6 +1,7 @@
 package com.careermetric.skill.controller;
 
 import com.careermetric.common.dto.ApiResponse;
+import com.careermetric.skill.dto.SkillDashboardResponse;
 import com.careermetric.skill.dto.SkillResponse;
 import com.careermetric.skill.service.SkillService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -44,12 +45,29 @@ public class SkillController {
     ) {
 
         SkillResponse skill =
-                skillService.getMySkill(technologyId);
+                skillService.getMySkill(
+                        technologyId
+                );
 
         return ResponseEntity.ok(
                 ApiResponse.success(
                         "Skill fetched successfully",
                         skill
+                )
+        );
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<ApiResponse<SkillDashboardResponse>>
+    getMySkillDashboard() {
+
+        SkillDashboardResponse dashboard =
+                skillService.getMySkillDashboard();
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "Skill dashboard fetched successfully",
+                        dashboard
                 )
         );
     }
