@@ -1,7 +1,11 @@
 package com.careermetric.resume.service;
 
 import com.careermetric.ai.dto.ResumeAnalysisAiResult;
+import com.careermetric.ai.dto.ResumeRecommendationAiResult;
+import com.careermetric.ai.dto.TechnologyExtractionAiResult;
 import com.careermetric.ai.service.ResumeAiService;
+import com.careermetric.ai.service.ResumeRecommendationAiService;
+import com.careermetric.ai.service.TechnologyExtractionAiService;
 import com.careermetric.auth.entity.User;
 import com.careermetric.resume.dto.ResumeAnalysisResponse;
 import com.careermetric.resume.dto.ResumeDetailResponse;
@@ -36,6 +40,9 @@ public class ResumeServiceImpl implements ResumeService {
     private final ResumeTextExtractionService resumeTextExtractionService;
 
     private final ResumeAiService resumeAiService;
+    private final TechnologyExtractionAiService technologyExtractionAiService;
+    private final ResumeRecommendationAiService resumeRecommendationAiService;
+
     private final ResumeScoringService resumeScoringService;
     private final ResumeAnalysisRepository resumeAnalysisRepository;
     private final ResumeAnalysisMapper resumeAnalysisMapper;
@@ -48,6 +55,8 @@ public class ResumeServiceImpl implements ResumeService {
             ResumeStorageService resumeStorageService,
             ResumeTextExtractionService resumeTextExtractionService,
             ResumeAiService resumeAiService,
+            TechnologyExtractionAiService technologyExtractionAiService,
+            ResumeRecommendationAiService resumeRecommendationAiService,
             ResumeScoringService resumeScoringService,
             ResumeAnalysisRepository resumeAnalysisRepository,
             ResumeAnalysisMapper resumeAnalysisMapper
@@ -58,7 +67,13 @@ public class ResumeServiceImpl implements ResumeService {
         this.resumeFileValidator = resumeFileValidator;
         this.resumeStorageService = resumeStorageService;
         this.resumeTextExtractionService = resumeTextExtractionService;
+
         this.resumeAiService = resumeAiService;
+        this.technologyExtractionAiService =
+                technologyExtractionAiService;
+        this.resumeRecommendationAiService =
+                resumeRecommendationAiService;
+
         this.resumeScoringService = resumeScoringService;
         this.resumeAnalysisRepository = resumeAnalysisRepository;
         this.resumeAnalysisMapper = resumeAnalysisMapper;
@@ -67,23 +82,17 @@ public class ResumeServiceImpl implements ResumeService {
     @Override
     public ResumeResponse uploadResume(MultipartFile file) {
 
-        Long userId =
-                currentUserService.getCurrentUserId();
+        Long userId = currentUserService.getCurrentUserId();
 
         resumeFileValidator.validate(file);
 
         String storedFilePath =
-                resumeStorageService.store(
-                        file,
-                        userId
-                );
+                resumeStorageService.store(file, userId);
 
         try {
 
             String extractedText =
-                    resumeTextExtractionService.extractText(
-                            file
-                    );
+                    resumeTextExtractionService.extractText(file);
 
             User user =
                     currentUserService.getCurrentUser();
@@ -91,39 +100,20 @@ public class ResumeServiceImpl implements ResumeService {
             Resume resume = new Resume();
 
             resume.setUser(user);
-
-            resume.setFileName(
-                    file.getOriginalFilename()
-            );
-
-            resume.setFileType(
-                    file.getContentType()
-            );
-
-            resume.setFilePath(
-                    storedFilePath
-            );
-
-            resume.setExtractedText(
-                    extractedText
-            );
-
-            resume.setStatus(
-                    ResumeStatus.UPLOADED
-            );
+            resume.setFileName(file.getOriginalFilename());
+            resume.setFileType(file.getContentType());
+            resume.setFilePath(storedFilePath);
+            resume.setExtractedText(extractedText);
+            resume.setStatus(ResumeStatus.UPLOADED);
 
             Resume savedResume =
                     resumeRepository.save(resume);
 
-            return resumeMapper.toResponse(
-                    savedResume
-            );
+            return resumeMapper.toResponse(savedResume);
 
         } catch (RuntimeException exception) {
 
-            resumeStorageService.delete(
-                    storedFilePath
-            );
+            resumeStorageService.delete(storedFilePath);
 
             throw exception;
         }
@@ -150,19 +140,14 @@ public class ResumeServiceImpl implements ResumeService {
 
         Resume resume =
                 resumeRepository
-                        .findByIdAndUserId(
-                                resumeId,
-                                userId
-                        )
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
+                        .findByIdAndUserId(resumeId, userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
                                         "Resume not found"
                                 )
                         );
 
-        return resumeMapper.toDetailResponse(
-                resume
-        );
+        return resumeMapper.toDetailResponse(resume);
     }
 
     @Override
@@ -174,48 +159,70 @@ public class ResumeServiceImpl implements ResumeService {
 
         Resume resume =
                 resumeRepository
-                        .findByIdAndUserId(
-                                resumeId,
-                                userId
-                        )
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
+                        .findByIdAndUserId(resumeId, userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
                                         "Resume not found"
                                 )
                         );
 
-        if (resume.getExtractedText() == null ||
-                resume.getExtractedText().isBlank()) {
+        if (resume.getExtractedText() == null
+                || resume.getExtractedText().isBlank()) {
 
             throw new IllegalStateException(
                     "Resume does not contain extracted text"
             );
         }
 
+        String resumeText =
+                resume.getExtractedText();
+
         /*
          * Step 1:
-         * Send resume text to Spring AI.
+         * Analyze the resume using AI.
          */
         ResumeAnalysisAiResult aiResult =
-                resumeAiService.analyzeResume(
-                        resume.getExtractedText()
-                );
+                resumeAiService.analyzeResume(resumeText);
 
         /*
          * Step 2:
-         * Calculate deterministic resume score.
+         * Extract technologies explicitly supported
+         * by the resume.
          */
-        ResumeScoringResult scoringResult =
-                resumeScoringService.calculateScore(
-                        resume.getExtractedText(),
-                        aiResult
+        TechnologyExtractionAiResult technologyExtraction =
+                technologyExtractionAiService.extractTechnologies(
+                        resumeText
                 );
 
         /*
          * Step 3:
-         * Find existing analysis.
+         * Generate actionable recommendations using
+         * the resume analysis and extracted technologies.
+         */
+        ResumeRecommendationAiResult recommendationAiResult =
+                resumeRecommendationAiService.generateRecommendations(
+                        resumeText,
+                        aiResult,
+                        technologyExtraction
+                );
+
+        /*
+         * Step 4:
+         * Calculate the deterministic resume score.
          *
-         * One resume has only one current/latest analysis.
+         * The score is controlled by the backend and is
+         * not generated by the LLM.
+         */
+        ResumeScoringResult scoringResult =
+                resumeScoringService.calculateScore(
+                        resumeText,
+                        aiResult
+                );
+
+        /*
+         * Step 5:
+         * Create a new analysis or update the existing
+         * latest analysis for this resume.
          */
         ResumeAnalysis analysis =
                 resumeAnalysisRepository
@@ -231,28 +238,29 @@ public class ResumeServiceImpl implements ResumeService {
                         });
 
         /*
-         * Step 4:
-         * Populate/update analysis entity.
+         * Step 6:
+         * Map AI analysis, recommendations and
+         * deterministic score into the persistence entity.
          */
         resumeAnalysisMapper.updateEntity(
                 analysis,
                 aiResult,
+                recommendationAiResult,
                 scoringResult.overallScore(),
                 scoringResult.scoreBreakdown()
         );
 
         /*
-         * Step 5:
-         * Persist analysis.
+         * Step 7:
+         * Persist the latest complete analysis.
          */
         ResumeAnalysis savedAnalysis =
-                resumeAnalysisRepository.save(
-                        analysis
-                );
+                resumeAnalysisRepository.save(analysis);
 
         /*
-         * Step 6:
-         * Convert entity into API response.
+         * Step 8:
+         * Convert the persisted entity into
+         * the API response.
          */
         return resumeAnalysisMapper.toResponse(
                 savedAnalysis
@@ -268,35 +276,20 @@ public class ResumeServiceImpl implements ResumeService {
         Long userId =
                 currentUserService.getCurrentUserId();
 
-        /*
-         * First verify that this resume belongs
-         * to the authenticated user.
-         */
         Resume resume =
                 resumeRepository
-                        .findByIdAndUserId(
-                                resumeId,
-                                userId
-                        )
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
+                        .findByIdAndUserId(resumeId, userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
                                         "Resume not found"
                                 )
                         );
 
-        /*
-         * Then retrieve the already generated analysis.
-         *
-         * IMPORTANT:
-         * This does NOT call the AI again.
-         */
         ResumeAnalysis analysis =
                 resumeAnalysisRepository
-                        .findByResumeId(
-                                resume.getId()
-                        )
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
+                        .findByResumeId(resume.getId())
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
                                         "Resume analysis not found"
                                 )
                         );
@@ -314,12 +307,9 @@ public class ResumeServiceImpl implements ResumeService {
 
         Resume resume =
                 resumeRepository
-                        .findByIdAndUserId(
-                                resumeId,
-                                userId
-                        )
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
+                        .findByIdAndUserId(resumeId, userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
                                         "Resume not found"
                                 )
                         );
@@ -329,8 +319,6 @@ public class ResumeServiceImpl implements ResumeService {
 
         resumeRepository.delete(resume);
 
-        resumeStorageService.delete(
-                filePath
-        );
+        resumeStorageService.delete(filePath);
     }
 }

@@ -3,6 +3,7 @@ package com.careermetric.resume.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.careermetric.resume.dto.ResumeRecommendationData;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -57,6 +58,10 @@ public class ResumeAnalysis {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json")
     private List<String> suggestions;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "recommendations", columnDefinition = "json")
+    private List<ResumeRecommendationData> recommendations;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json")
@@ -149,6 +154,16 @@ public class ResumeAnalysis {
     public void setSuggestions(List<String> suggestions) {
         this.suggestions = suggestions;
     }
+
+    public List<ResumeRecommendationData> getRecommendations() {
+         return recommendations;
+    }
+
+    public void setRecommendations(
+        List<ResumeRecommendationData> recommendations
+) {
+    this.recommendations = recommendations;
+}
 
     public Map<String, Object> getSections() {
         return sections;

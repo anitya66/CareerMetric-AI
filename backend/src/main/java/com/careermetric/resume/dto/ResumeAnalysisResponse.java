@@ -13,6 +13,7 @@ public record ResumeAnalysisResponse(
         List<String> weaknesses,
         List<String> missingElements,
         List<String> suggestions,
+        List<ResumeRecommendationData> recommendations,
         ResumeSectionAnalysis sections
 ) {
 }
