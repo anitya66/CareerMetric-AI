@@ -1,8 +1,11 @@
 package com.careermetric.assessment.controller;
 
+import com.careermetric.assessment.dto.AssessmentAttemptResponse;
 import com.careermetric.assessment.dto.AssessmentDetailResponse;
 import com.careermetric.assessment.dto.AssessmentResponse;
+import com.careermetric.assessment.dto.AssessmentResultResponse;
 import com.careermetric.assessment.dto.CreateAssessmentRequest;
+import com.careermetric.assessment.dto.SubmitAnswerRequest;
 import com.careermetric.assessment.service.AssessmentService;
 import com.careermetric.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -87,4 +90,86 @@ public class AssessmentController {
                 )
         );
     }
+
+    @PostMapping("/{assessmentId}/attempts")
+public ResponseEntity<
+        ApiResponse<AssessmentAttemptResponse>
+        > startAttempt(
+        @PathVariable Long assessmentId
+) {
+
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    "Assessment attempt started",
+                    assessmentService.startAttempt(
+                            assessmentId
+                    )
+            )
+    );
+}
+
+@PostMapping(
+        "/{assessmentId}/attempts/{attemptId}/answers"
+)
+public ResponseEntity<
+        ApiResponse<AssessmentAttemptResponse>
+        > submitAnswer(
+        @PathVariable Long assessmentId,
+        @PathVariable Long attemptId,
+        @Valid @RequestBody SubmitAnswerRequest request
+) {
+
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    "Answer submitted",
+                    assessmentService.submitAnswer(
+                            assessmentId,
+                            attemptId,
+                            request
+                    )
+            )
+    );
+}
+
+@PostMapping(
+        "/{assessmentId}/attempts/{attemptId}/submit"
+)
+public ResponseEntity<
+        ApiResponse<AssessmentResultResponse>
+        > submitAssessment(
+        @PathVariable Long assessmentId,
+        @PathVariable Long attemptId
+) {
+
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    "Assessment submitted successfully",
+                    assessmentService.submitAssessment(
+                            assessmentId,
+                            attemptId
+                    )
+            )
+    );
+}
+
+@GetMapping(
+        "/{assessmentId}/attempts/{attemptId}/result"
+)
+public ResponseEntity<
+        ApiResponse<AssessmentResultResponse>
+        > getAssessmentResult(
+        @PathVariable Long assessmentId,
+        @PathVariable Long attemptId
+) {
+
+    return ResponseEntity.ok(
+            ApiResponse.success(
+                    "Assessment result fetched successfully",
+                    assessmentService.getAssessmentResult(
+                            assessmentId,
+                            attemptId
+                    )
+            )
+    );
+}
 }

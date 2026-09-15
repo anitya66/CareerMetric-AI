@@ -3,14 +3,23 @@ package com.careermetric.assessment.service;
 import com.careermetric.ai.dto.AssessmentQuestionAi;
 import com.careermetric.ai.dto.AssessmentQuestionAiResult;
 import com.careermetric.ai.service.AssessmentQuestionAiService;
+import com.careermetric.assessment.dto.AssessmentAttemptResponse;
 import com.careermetric.assessment.dto.AssessmentDetailResponse;
 import com.careermetric.assessment.dto.AssessmentResponse;
+import com.careermetric.assessment.dto.AssessmentResultResponse;
 import com.careermetric.assessment.dto.CreateAssessmentRequest;
+import com.careermetric.assessment.dto.SubmitAnswerRequest;
+import com.careermetric.assessment.entity.Answer;
 import com.careermetric.assessment.entity.Assessment;
+import com.careermetric.assessment.entity.AssessmentAttempt;
 import com.careermetric.assessment.entity.AssessmentStatus;
+import com.careermetric.assessment.entity.AttemptStatus;
 import com.careermetric.assessment.entity.Question;
 import com.careermetric.assessment.entity.QuestionType;
+import com.careermetric.assessment.mapper.AssessmentAttemptMapper;
 import com.careermetric.assessment.mapper.AssessmentMapper;
+import com.careermetric.assessment.repository.AnswerRepository;
+import com.careermetric.assessment.repository.AssessmentAttemptRepository;
 import com.careermetric.assessment.repository.AssessmentRepository;
 import com.careermetric.assessment.repository.QuestionRepository;
 import com.careermetric.auth.entity.User;
@@ -21,6 +30,7 @@ import com.careermetric.skill.repository.TechnologyRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,8 +45,11 @@ public class AssessmentServiceImpl
     private final QuestionRepository questionRepository;
     private final TechnologyRepository technologyRepository;
     private final ResumeTechnologyRepository resumeTechnologyRepository;
+    private final AssessmentAttemptRepository assessmentAttemptRepository;
+    private final AnswerRepository answerRepository;
     private final CurrentUserService currentUserService;
     private final AssessmentMapper assessmentMapper;
+    private final AssessmentAttemptMapper assessmentAttemptMapper;
     private final AssessmentQuestionAiService
             assessmentQuestionAiService;
 
@@ -45,8 +58,11 @@ public class AssessmentServiceImpl
             QuestionRepository questionRepository,
             TechnologyRepository technologyRepository,
             ResumeTechnologyRepository resumeTechnologyRepository,
+            AssessmentAttemptRepository assessmentAttemptRepository,
+            AnswerRepository answerRepository,
             CurrentUserService currentUserService,
             AssessmentMapper assessmentMapper,
+            AssessmentAttemptMapper assessmentAttemptMapper,
             AssessmentQuestionAiService assessmentQuestionAiService
     ) {
         this.assessmentRepository =
@@ -61,15 +77,28 @@ public class AssessmentServiceImpl
         this.resumeTechnologyRepository =
                 resumeTechnologyRepository;
 
+        this.assessmentAttemptRepository =
+                assessmentAttemptRepository;
+
+        this.answerRepository =
+                answerRepository;
+
         this.currentUserService =
                 currentUserService;
 
         this.assessmentMapper =
                 assessmentMapper;
 
+        this.assessmentAttemptMapper =
+                assessmentAttemptMapper;
+
         this.assessmentQuestionAiService =
                 assessmentQuestionAiService;
     }
+
+    // ============================================================
+    // CREATE ASSESSMENT
+    // ============================================================
 
     @Override
     @Transactional
@@ -158,7 +187,7 @@ public class AssessmentServiceImpl
 
         /*
          * Step 5:
-         * Validate the AI result before touching
+         * Validate AI result before touching
          * the Question table.
          */
         validateAiResult(
@@ -207,6 +236,10 @@ public class AssessmentServiceImpl
         );
     }
 
+    // ============================================================
+    // GET MY ASSESSMENTS
+    // ============================================================
+
     @Override
     @Transactional
     public List<AssessmentResponse> getMyAssessments() {
@@ -220,6 +253,10 @@ public class AssessmentServiceImpl
                 .map(assessmentMapper::toResponse)
                 .toList();
     }
+
+    // ============================================================
+    // GET ASSESSMENT DETAILS
+    // ============================================================
 
     @Override
     @Transactional
@@ -253,6 +290,417 @@ public class AssessmentServiceImpl
                 questions
         );
     }
+
+    // ============================================================
+    // START ATTEMPT
+    // ============================================================
+
+    @Override
+    @Transactional
+    public AssessmentAttemptResponse startAttempt(
+            Long assessmentId
+    ) {
+
+        Long userId =
+                currentUserService.getCurrentUserId();
+
+        /*
+         * Find assessment and verify ownership.
+         */
+        Assessment assessment =
+                assessmentRepository
+                        .findByIdAndUserId(
+                                assessmentId,
+                                userId
+                        )
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Assessment not found"
+                                )
+                        );
+
+        /*
+         * Candidate can only start a ready assessment.
+         */
+        if (assessment.getStatus()
+                != AssessmentStatus.READY) {
+
+            throw new IllegalStateException(
+                    "Assessment is not ready"
+            );
+        }
+
+        /*
+         * Verify that questions actually exist.
+         */
+        long questionCount =
+                questionRepository
+                        .countByAssessmentId(
+                                assessmentId
+                        );
+
+        if (questionCount == 0) {
+
+            throw new IllegalStateException(
+                    "Assessment has no questions"
+            );
+        }
+
+        /*
+         * Create a new attempt.
+         */
+        AssessmentAttempt attempt =
+                new AssessmentAttempt();
+
+        attempt.setAssessment(
+                assessment
+        );
+
+        attempt.setUser(
+                currentUserService.getCurrentUser()
+        );
+
+        attempt.setStatus(
+                AttemptStatus.IN_PROGRESS
+        );
+
+        attempt.setTotalQuestions(
+                (int) questionCount
+        );
+
+        AssessmentAttempt savedAttempt =
+                assessmentAttemptRepository.save(
+                        attempt
+                );
+
+        return assessmentAttemptMapper.toResponse(
+                savedAttempt
+        );
+    }
+
+    // ============================================================
+    // SUBMIT INDIVIDUAL ANSWER
+    // ============================================================
+
+    @Override
+    @Transactional
+    public AssessmentAttemptResponse submitAnswer(
+            Long assessmentId,
+            Long attemptId,
+            SubmitAnswerRequest request
+    ) {
+
+        Long userId =
+                currentUserService.getCurrentUserId();
+
+        /*
+         * Step 1:
+         * Find the attempt and verify:
+         *
+         * - attempt belongs to current user
+         * - attempt belongs to requested assessment
+         */
+        AssessmentAttempt attempt =
+                assessmentAttemptRepository
+                        .findByIdAndAssessmentIdAndUserId(
+                                attemptId,
+                                assessmentId,
+                                userId
+                        )
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Assessment attempt not found"
+                                )
+                        );
+
+        /*
+         * Step 2:
+         * Candidate cannot answer after completion.
+         */
+        if (attempt.getStatus()
+                != AttemptStatus.IN_PROGRESS) {
+
+            throw new IllegalStateException(
+                    "Assessment attempt is already completed"
+            );
+        }
+
+        /*
+         * Step 3:
+         * Verify that question belongs
+         * to this assessment.
+         */
+        Question question =
+                questionRepository
+                        .findByIdAndAssessmentId(
+                                request.questionId(),
+                                assessmentId
+                        )
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Question not found"
+                                )
+                        );
+
+        /*
+         * Step 4:
+         * Prevent duplicate answers.
+         */
+        if (answerRepository.existsByAttemptIdAndQuestionId(
+                attemptId,
+                question.getId()
+        )) {
+
+            throw new IllegalStateException(
+                    "Answer already submitted for this question"
+            );
+        }
+
+        /*
+         * Step 5:
+         * Deterministic evaluation.
+         *
+         * No AI is required here.
+         */
+        boolean correct =
+                question.getCorrectAnswer()
+                        .equals(
+                                request.selectedAnswer()
+                        );
+
+        /*
+         * Step 6:
+         * Create answer record.
+         */
+        Answer answer =
+                new Answer();
+
+        answer.setAttempt(
+                attempt
+        );
+
+        answer.setQuestion(
+                question
+        );
+
+        answer.setSelectedAnswer(
+                request.selectedAnswer()
+        );
+
+        answer.setCorrect(
+                correct
+        );
+
+        answerRepository.save(
+                answer
+        );
+
+        return assessmentAttemptMapper.toResponse(
+                attempt
+        );
+    }
+
+    // ============================================================
+    // SUBMIT COMPLETE ASSESSMENT
+    // ============================================================
+
+    @Override
+    @Transactional
+    public AssessmentResultResponse submitAssessment(
+            Long assessmentId,
+            Long attemptId
+    ) {
+
+        Long userId =
+                currentUserService.getCurrentUserId();
+
+        /*
+         * Step 1:
+         * Find the attempt belonging to:
+         *
+         * - current user
+         * - requested assessment
+         */
+        AssessmentAttempt attempt =
+                assessmentAttemptRepository
+                        .findByIdAndAssessmentIdAndUserId(
+                                attemptId,
+                                assessmentId,
+                                userId
+                        )
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Assessment attempt not found"
+                                )
+                        );
+
+        /*
+         * Step 2:
+         * Prevent submitting an already
+         * completed attempt.
+         */
+        if (attempt.getStatus()
+                != AttemptStatus.IN_PROGRESS) {
+
+            throw new IllegalStateException(
+                    "Assessment attempt is already completed"
+            );
+        }
+
+        /*
+         * Step 3:
+         * Get all questions.
+         */
+        List<Question> questions =
+                questionRepository
+                        .findAllByAssessmentId(
+                                assessmentId
+                        );
+
+        if (questions.isEmpty()) {
+
+            throw new IllegalStateException(
+                    "Assessment has no questions"
+            );
+        }
+
+        /*
+         * Step 4:
+         * Get all answers submitted
+         * during this attempt.
+         */
+        List<Answer> answers =
+                answerRepository
+                        .findAllByAttemptId(
+                                attemptId
+                        );
+
+        /*
+         * Step 5:
+         * Count correct answers.
+         */
+        int correctAnswers =
+                (int) answers.stream()
+                        .filter(Answer::getCorrect)
+                        .count();
+
+        /*
+         * Step 6:
+         * Calculate score.
+         *
+         * Example:
+         *
+         * 4 / 5 = 80
+         */
+        int totalQuestions =
+                questions.size();
+
+        int score =
+                Math.round(
+                        ((float) correctAnswers
+                                / totalQuestions)
+                                * 100
+                );
+
+        /*
+         * Step 7:
+         * Mark attempt as completed.
+         */
+        attempt.setStatus(
+                AttemptStatus.COMPLETED
+        );
+
+        attempt.setScore(
+                score
+        );
+
+        attempt.setCorrectAnswers(
+                correctAnswers
+        );
+
+        attempt.setTotalQuestions(
+                totalQuestions
+        );
+
+        attempt.setCompletedAt(
+                LocalDateTime.now()
+        );
+
+        AssessmentAttempt completedAttempt =
+                assessmentAttemptRepository.save(
+                        attempt
+                );
+
+        /*
+         * Step 8:
+         * Return result.
+         */
+        return toResultResponse(
+                completedAttempt,
+                answers.size()
+        );
+    }
+
+    // ============================================================
+    // GET ASSESSMENT RESULT
+    // ============================================================
+
+    @Override
+    @Transactional
+    public AssessmentResultResponse getAssessmentResult(
+            Long assessmentId,
+            Long attemptId
+    ) {
+
+        Long userId =
+                currentUserService.getCurrentUserId();
+
+        /*
+         * Find the attempt and verify ownership.
+         */
+        AssessmentAttempt attempt =
+                assessmentAttemptRepository
+                        .findByIdAndAssessmentIdAndUserId(
+                                attemptId,
+                                assessmentId,
+                                userId
+                        )
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Assessment attempt not found"
+                                )
+                        );
+
+        /*
+         * Result is available only after completion.
+         */
+        if (attempt.getStatus()
+                != AttemptStatus.COMPLETED) {
+
+            throw new IllegalStateException(
+                    "Assessment has not been completed"
+            );
+        }
+
+        /*
+         * Count answered questions.
+         */
+        int answeredQuestions =
+                answerRepository
+                        .findAllByAttemptId(
+                                attemptId
+                        )
+                        .size();
+
+        return toResultResponse(
+                attempt,
+                answeredQuestions
+        );
+    }
+
+    // ============================================================
+    // AI RESULT VALIDATION
+    // ============================================================
 
     private void validateAiResult(
             AssessmentQuestionAiResult aiResult,
@@ -296,6 +744,10 @@ public class AssessmentServiceImpl
                 );
             }
 
+            /*
+             * Currently CareerMetric AI supports
+             * MCQ assessments only.
+             */
             if (!"MCQ".equalsIgnoreCase(
                     question.questionType()
             )) {
@@ -305,6 +757,10 @@ public class AssessmentServiceImpl
                 );
             }
 
+            /*
+             * Every MCQ must have exactly
+             * four options.
+             */
             if (question.options() == null
                     || question.options().size() != 4) {
 
@@ -313,6 +769,9 @@ public class AssessmentServiceImpl
                 );
             }
 
+            /*
+             * Validate individual options.
+             */
             for (String option : question.options()) {
 
                 if (option == null
@@ -324,6 +783,9 @@ public class AssessmentServiceImpl
                 }
             }
 
+            /*
+             * Validate correct answer.
+             */
             if (question.correctAnswer() == null
                     || question.correctAnswer().isBlank()) {
 
@@ -332,6 +794,10 @@ public class AssessmentServiceImpl
                 );
             }
 
+            /*
+             * Correct answer must exactly match
+             * one of the four options.
+             */
             boolean correctAnswerExists =
                     question.options()
                             .stream()
@@ -348,6 +814,9 @@ public class AssessmentServiceImpl
                 );
             }
 
+            /*
+             * Explanation is required.
+             */
             if (question.explanation() == null
                     || question.explanation().isBlank()) {
 
@@ -356,6 +825,9 @@ public class AssessmentServiceImpl
                 );
             }
 
+            /*
+             * Prevent duplicate questions.
+             */
             String normalizedQuestion =
                     question.questionText()
                             .trim()
@@ -371,6 +843,10 @@ public class AssessmentServiceImpl
             }
         }
     }
+
+    // ============================================================
+    // AI QUESTION → QUESTION ENTITY
+    // ============================================================
 
     private Question toQuestionEntity(
             Assessment assessment,
@@ -405,5 +881,32 @@ public class AssessmentServiceImpl
         );
 
         return question;
+    }
+
+    // ============================================================
+    // RESULT RESPONSE MAPPER
+    // ============================================================
+
+    private AssessmentResultResponse toResultResponse(
+            AssessmentAttempt attempt,
+            int answeredQuestions
+    ) {
+
+        return new AssessmentResultResponse(
+                attempt.getId(),
+                attempt.getAssessment().getId(),
+                attempt.getAssessment()
+                        .getTechnology()
+                        .getName(),
+                attempt.getAssessment()
+                        .getDifficulty()
+                        .name(),
+                attempt.getScore(),
+                attempt.getCorrectAnswers(),
+                attempt.getTotalQuestions(),
+                answeredQuestions,
+                attempt.getStartedAt(),
+                attempt.getCompletedAt()
+        );
     }
 }
