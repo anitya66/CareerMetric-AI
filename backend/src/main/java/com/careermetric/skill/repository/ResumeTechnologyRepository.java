@@ -11,6 +11,8 @@ public interface ResumeTechnologyRepository
 
     List<ResumeTechnology> findAllByResumeId(Long resumeId);
 
+    List<ResumeTechnology> findAllByResumeUserId(Long userId);
+
     Optional<ResumeTechnology> findByResumeIdAndTechnologyId(
             Long resumeId,
             Long technologyId
