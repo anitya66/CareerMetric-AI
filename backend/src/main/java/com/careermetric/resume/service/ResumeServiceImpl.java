@@ -23,6 +23,8 @@ import com.careermetric.resume.scoring.ResumeScoringService;
 import com.careermetric.resume.storage.ResumeStorageService;
 import com.careermetric.resume.validation.ResumeFileValidator;
 import com.careermetric.security.service.CurrentUserService;
+import com.careermetric.skill.service.TechnologyPersistenceService;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +48,7 @@ public class ResumeServiceImpl implements ResumeService {
     private final ResumeScoringService resumeScoringService;
     private final ResumeAnalysisRepository resumeAnalysisRepository;
     private final ResumeAnalysisMapper resumeAnalysisMapper;
+    private final TechnologyPersistenceService technologyPersistenceService;
 
     public ResumeServiceImpl(
             ResumeRepository resumeRepository,
@@ -59,7 +62,8 @@ public class ResumeServiceImpl implements ResumeService {
             ResumeRecommendationAiService resumeRecommendationAiService,
             ResumeScoringService resumeScoringService,
             ResumeAnalysisRepository resumeAnalysisRepository,
-            ResumeAnalysisMapper resumeAnalysisMapper
+            ResumeAnalysisMapper resumeAnalysisMapper,
+            TechnologyPersistenceService technologyPersistenceService
     ) {
         this.resumeRepository = resumeRepository;
         this.resumeMapper = resumeMapper;
@@ -77,6 +81,8 @@ public class ResumeServiceImpl implements ResumeService {
         this.resumeScoringService = resumeScoringService;
         this.resumeAnalysisRepository = resumeAnalysisRepository;
         this.resumeAnalysisMapper = resumeAnalysisMapper;
+        this.technologyPersistenceService =
+                technologyPersistenceService;
     }
 
     @Override
@@ -196,6 +202,22 @@ public class ResumeServiceImpl implements ResumeService {
 
         /*
          * Step 3:
+         * Persist the technologies extracted from
+         * the current resume analysis.
+         *
+         * The persistence service handles:
+         * - finding existing technologies
+         * - creating new technologies
+         * - creating resume-technology relationships
+         * - preventing stale relationships on re-analysis
+         */
+        technologyPersistenceService.syncExtractedTechnologies(
+                resume,
+                technologyExtraction
+        );
+
+        /*
+         * Step 4:
          * Generate actionable recommendations using
          * the resume analysis and extracted technologies.
          */
@@ -207,7 +229,7 @@ public class ResumeServiceImpl implements ResumeService {
                 );
 
         /*
-         * Step 4:
+         * Step 5:
          * Calculate the deterministic resume score.
          *
          * The score is controlled by the backend and is
@@ -220,7 +242,7 @@ public class ResumeServiceImpl implements ResumeService {
                 );
 
         /*
-         * Step 5:
+         * Step 6:
          * Create a new analysis or update the existing
          * latest analysis for this resume.
          */
@@ -238,7 +260,7 @@ public class ResumeServiceImpl implements ResumeService {
                         });
 
         /*
-         * Step 6:
+         * Step 7:
          * Map AI analysis, recommendations and
          * deterministic score into the persistence entity.
          */
@@ -251,14 +273,14 @@ public class ResumeServiceImpl implements ResumeService {
         );
 
         /*
-         * Step 7:
+         * Step 8:
          * Persist the latest complete analysis.
          */
         ResumeAnalysis savedAnalysis =
                 resumeAnalysisRepository.save(analysis);
 
         /*
-         * Step 8:
+         * Step 9:
          * Convert the persisted entity into
          * the API response.
          */
