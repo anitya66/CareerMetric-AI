@@ -3,6 +3,7 @@ package com.careermetric.job.service;
 import com.careermetric.ai.service.EmbeddingService;
 import com.careermetric.job.dto.JobMatchRequest;
 import com.careermetric.job.dto.JobMatchResponse;
+import com.careermetric.job.dto.SkillGap;
 import com.careermetric.job.entity.JobDescription;
 import com.careermetric.job.entity.JobRequirement;
 import com.careermetric.job.entity.JobRequirementType;
@@ -30,10 +31,6 @@ public class JobMatchingServiceImpl implements JobMatchingService {
 
     private static final int RESUME_CHUNK_SIZE = 1000;
 
-    /*
-     * Semantic matching is used only as a fallback
-     * when direct evidence cannot establish a match.
-     */
     private static final double SEMANTIC_MATCH_THRESHOLD = 0.70;
 
     private final JobDescriptionRepository jobDescriptionRepository;
@@ -42,6 +39,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     private final ResumeTechnologyRepository resumeTechnologyRepository;
     private final CurrentUserService currentUserService;
     private final EmbeddingService embeddingService;
+    private final SkillGapIntelligenceService skillGapIntelligenceService;
 
     public JobMatchingServiceImpl(
             JobDescriptionRepository jobDescriptionRepository,
@@ -49,7 +47,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
             ResumeRepository resumeRepository,
             ResumeTechnologyRepository resumeTechnologyRepository,
             CurrentUserService currentUserService,
-            EmbeddingService embeddingService
+            EmbeddingService embeddingService,
+            SkillGapIntelligenceService skillGapIntelligenceService
     ) {
         this.jobDescriptionRepository = jobDescriptionRepository;
         this.jobRequirementRepository = jobRequirementRepository;
@@ -57,6 +56,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         this.resumeTechnologyRepository = resumeTechnologyRepository;
         this.currentUserService = currentUserService;
         this.embeddingService = embeddingService;
+        this.skillGapIntelligenceService =
+                skillGapIntelligenceService;
     }
 
     @Override
@@ -64,36 +65,43 @@ public class JobMatchingServiceImpl implements JobMatchingService {
             JobMatchRequest request
     ) {
 
-        Long userId = currentUserService.getCurrentUserId();
+        Long userId =
+                currentUserService.getCurrentUserId();
 
         // ---------------------------------------------------------
-        // 1. Verify resume belongs to current user
+        // 1. Verify resume ownership
         // ---------------------------------------------------------
 
-        Resume resume = resumeRepository
-                .findByIdAndUserId(
-                        request.resumeId(),
-                        userId
-                )
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Resume not found"
-                ));
+        Resume resume =
+                resumeRepository
+                        .findByIdAndUserId(
+                                request.resumeId(),
+                                userId
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Resume not found"
+                                )
+                        );
 
         // ---------------------------------------------------------
-        // 2. Verify job description belongs to current user
+        // 2. Verify job description ownership
         // ---------------------------------------------------------
 
-        JobDescription jobDescription = jobDescriptionRepository
-                .findByIdAndUserId(
-                        request.jobDescriptionId(),
-                        userId
-                )
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Job description not found"
-                ));
+        JobDescription jobDescription =
+                jobDescriptionRepository
+                        .findByIdAndUserId(
+                                request.jobDescriptionId(),
+                                userId
+                        )
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Job description not found"
+                                )
+                        );
 
         // ---------------------------------------------------------
-        // 3. Get AI-extracted job requirements
+        // 3. Get analyzed requirements
         // ---------------------------------------------------------
 
         List<JobRequirement> requirements =
@@ -109,32 +117,38 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         }
 
         // ---------------------------------------------------------
-        // 4. Get technologies extracted from resume
+        // 4. Get resume technologies
         // ---------------------------------------------------------
 
         List<ResumeTechnology> resumeTechnologies =
                 resumeTechnologyRepository
-                        .findAllByResumeId(resume.getId());
+                        .findAllByResumeId(
+                                resume.getId()
+                        );
 
-        Set<String> resumeSkills = resumeTechnologies
-                .stream()
-                .map(ResumeTechnology::getTechnology)
-                .map(technology ->
-                        normalize(technology.getName())
-                )
-                .collect(Collectors.toSet());
+        Set<String> resumeSkills =
+                resumeTechnologies
+                        .stream()
+                        .map(ResumeTechnology::getTechnology)
+                        .map(technology ->
+                                normalize(
+                                        technology.getName()
+                                )
+                        )
+                        .collect(Collectors.toSet());
 
         // ---------------------------------------------------------
-        // 5. Index resume text in PGVector
+        // 5. Index resume for semantic fallback
         // ---------------------------------------------------------
 
         indexResume(resume);
 
         // ---------------------------------------------------------
-        // 6. Prepare matching result
+        // 6. Result collections
         // ---------------------------------------------------------
 
-        List<String> matchedSkills = new ArrayList<>();
+        List<String> matchedSkills =
+                new ArrayList<>();
 
         List<String> missingRequiredSkills =
                 new ArrayList<>();
@@ -142,17 +156,22 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         List<String> missingPreferredSkills =
                 new ArrayList<>();
 
+        List<SkillGap> skillGaps =
+                new ArrayList<>();
+
         int totalRequired = 0;
         int matchedRequired = 0;
 
         // ---------------------------------------------------------
-        // 7. Compare each JD requirement
+        // 7. Match each requirement
         // ---------------------------------------------------------
 
-        for (JobRequirement requirement : requirements) {
+        for (JobRequirement requirement :
+                requirements) {
 
             if (requirement.getRequirement() == null
                     || requirement.getRequirement().isBlank()) {
+
                 continue;
             }
 
@@ -163,18 +182,17 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                     normalize(requirementText);
 
             // -----------------------------------------------------
-            // Layer 1:
-            // Exact technology-profile matching
+            // Layer 1: Resume technology profile
             // -----------------------------------------------------
 
-            boolean exactMatched = isSkillMatched(
-                    normalizedRequirement,
-                    resumeSkills
-            );
+            boolean exactMatched =
+                    isSkillMatched(
+                            normalizedRequirement,
+                            resumeSkills
+                    );
 
             // -----------------------------------------------------
-            // Layer 2:
-            // Direct resume-text evidence
+            // Layer 2: Direct resume text
             // -----------------------------------------------------
 
             boolean resumeTextMatched =
@@ -184,16 +202,13 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                     );
 
             // -----------------------------------------------------
-            // Layer 3:
-            // PGVector semantic matching
-            //
-            // Only used when direct evidence does not establish
-            // the match.
+            // Layer 3: Semantic fallback
             // -----------------------------------------------------
 
             boolean semanticMatched = false;
 
-            if (!exactMatched && !resumeTextMatched) {
+            if (!exactMatched
+                    && !resumeTextMatched) {
 
                 SemanticMatch semanticMatch =
                         findSemanticMatch(
@@ -207,7 +222,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
             }
 
             // -----------------------------------------------------
-            // Final match decision
+            // Final match
             // -----------------------------------------------------
 
             boolean matched =
@@ -216,7 +231,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                             || semanticMatched;
 
             // -----------------------------------------------------
-            // Required requirement
+            // Required
             // -----------------------------------------------------
 
             if (requirement.getType()
@@ -239,11 +254,22 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                             missingRequiredSkills,
                             requirementText
                     );
+
+                    SkillGap skillGap =
+                            skillGapIntelligenceService
+                                    .createSkillGap(
+                                            requirement
+                                    );
+
+                    addSkillGapIfAbsent(
+                            skillGaps,
+                            skillGap
+                    );
                 }
             }
 
             // -----------------------------------------------------
-            // Preferred requirement
+            // Preferred
             // -----------------------------------------------------
 
             else if (requirement.getType()
@@ -262,18 +288,23 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                             missingPreferredSkills,
                             requirementText
                     );
+
+                    SkillGap skillGap =
+                            skillGapIntelligenceService
+                                    .createSkillGap(
+                                            requirement
+                                    );
+
+                    addSkillGapIfAbsent(
+                            skillGaps,
+                            skillGap
+                    );
                 }
             }
         }
 
         // ---------------------------------------------------------
-        // 8. Calculate final match score
-        //
-        // Every requirement that has valid evidence counts as a
-        // match.
-        //
-        // Direct evidence is preferred.
-        // Semantic matching is only a fallback.
+        // 8. Calculate match score
         // ---------------------------------------------------------
 
         int matchScore =
@@ -283,27 +314,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                 );
 
         // ---------------------------------------------------------
-        // 9. Skill gaps
-        // ---------------------------------------------------------
-
-        List<String> skillGaps =
-                new ArrayList<>();
-
-        skillGaps.addAll(
-                missingRequiredSkills
-        );
-
-        for (String preferredSkill :
-                missingPreferredSkills) {
-
-            addIfAbsent(
-                    skillGaps,
-                    preferredSkill
-            );
-        }
-
-        // ---------------------------------------------------------
-        // 10. Return result
+        // 9. Return response
         // ---------------------------------------------------------
 
         return new JobMatchResponse(
@@ -318,12 +329,11 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     /**
-     * Indexes the extracted resume text in PGVector.
-     *
-     * Existing vectors for this resume are removed first so
-     * repeated matching does not create duplicate documents.
+     * Index extracted resume text in PGVector.
      */
-    private void indexResume(Resume resume) {
+    private void indexResume(
+            Resume resume
+    ) {
 
         String extractedText =
                 resume.getExtractedText();
@@ -345,7 +355,9 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         );
 
         List<String> chunks =
-                splitIntoChunks(extractedText);
+                splitIntoChunks(
+                        extractedText
+                );
 
         List<Document> documents =
                 new ArrayList<>();
@@ -354,11 +366,9 @@ public class JobMatchingServiceImpl implements JobMatchingService {
              i < chunks.size();
              i++) {
 
-            String chunk = chunks.get(i);
-
             documents.add(
                     new Document(
-                            chunk,
+                            chunks.get(i),
                             Map.of(
                                     "entityType",
                                     "RESUME",
@@ -377,8 +387,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     /**
-     * Searches only the current resume's vector documents
-     * for the supplied requirement.
+     * Semantic search restricted to the current resume.
      */
     private SemanticMatch findSemanticMatch(
             String requirement,
@@ -425,18 +434,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     /**
-     * Checks whether the requirement is explicitly supported
-     * by the extracted resume text.
-     *
-     * This handles concepts that may not exist as
-     * ResumeTechnology records.
-     *
-     * Examples:
-     * - Object-Oriented Programming
-     * - Exception Handling
-     * - Collections
-     * - Multithreading
-     * - Database Concepts
+     * Checks direct evidence in resume text.
      */
     private boolean isRequirementSupportedByResumeText(
             String requirement,
@@ -457,19 +455,12 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         String normalizedRequirement =
                 normalize(requirement);
 
-        // ---------------------------------------------------------
         // Direct phrase match
-        // ---------------------------------------------------------
-
         if (normalizedResumeText.contains(
                 normalizedRequirement
         )) {
             return true;
         }
-
-        // ---------------------------------------------------------
-        // Common terminology / aliases
-        // ---------------------------------------------------------
 
         return switch (normalizedRequirement) {
 
@@ -477,9 +468,6 @@ public class JobMatchingServiceImpl implements JobMatchingService {
 
                     normalizedResumeText.contains(
                             "object oriented programming"
-                    )
-                    || normalizedResumeText.contains(
-                            "object-oriented programming"
                     )
                     || normalizedResumeText.contains(
                             "oop"
@@ -517,17 +505,13 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                     || normalizedResumeText.contains(
                             "java exceptions"
                     );
-                    
 
             default -> false;
         };
     }
 
     /**
-     * Splits resume text into simple chunks for embeddings.
-     *
-     * This remains intentionally simple because CareerMetric AI
-     * is a fresher-focused project.
+     * Splits resume text into embedding chunks.
      */
     private List<String> splitIntoChunks(
             String text
@@ -568,7 +552,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     /**
-     * Exact normalized/containment matching.
+     * Matches JD requirements against extracted
+     * resume technologies.
      */
     private boolean isSkillMatched(
             String requirement,
@@ -604,11 +589,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     /**
-     * Calculates the final required-skill match score.
-     *
-     * Semantic matching is a fallback mechanism, so once a
-     * requirement has valid direct or semantic evidence, it
-     * contributes to the final requirement coverage.
+     * Calculates required-skill coverage.
      */
     private int calculateMatchScore(
             int totalRequired,
@@ -633,6 +614,25 @@ public class JobMatchingServiceImpl implements JobMatchingService {
 
         if (!list.contains(value)) {
             list.add(value);
+        }
+    }
+
+    private void addSkillGapIfAbsent(
+            List<SkillGap> skillGaps,
+            SkillGap skillGap
+    ) {
+
+        boolean exists =
+                skillGaps.stream()
+                        .anyMatch(existing ->
+                                existing.skill()
+                                        .equalsIgnoreCase(
+                                                skillGap.skill()
+                                        )
+                        );
+
+        if (!exists) {
+            skillGaps.add(skillGap);
         }
     }
 
