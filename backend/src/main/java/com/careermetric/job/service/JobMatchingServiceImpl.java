@@ -556,37 +556,42 @@ public class JobMatchingServiceImpl implements JobMatchingService {
      * resume technologies.
      */
     private boolean isSkillMatched(
-            String requirement,
-            Set<String> resumeSkills
-    ) {
+        String requirement,
+        Set<String> resumeSkills
+) {
 
-        if (resumeSkills.contains(
-                requirement
+    String normalizedRequirement =
+            normalize(requirement);
+
+    if (resumeSkills.contains(
+            normalizedRequirement
+    )) {
+        return true;
+    }
+
+    for (String resumeSkill : resumeSkills) {
+
+        String normalizedResumeSkill =
+                normalize(resumeSkill);
+
+        if (normalizedResumeSkill.equals(
+                normalizedRequirement
         )) {
             return true;
         }
 
-        for (String resumeSkill :
-                resumeSkills) {
-
-            if (resumeSkill.equals(
-                    requirement
-            )) {
-                return true;
-            }
-
-            if (resumeSkill.contains(
-                    requirement
-            )
-                    || requirement.contains(
-                    resumeSkill
-            )) {
-                return true;
-            }
+        if (normalizedResumeSkill.contains(
+                normalizedRequirement
+        )
+                || normalizedRequirement.contains(
+                normalizedResumeSkill
+        )) {
+            return true;
         }
-
-        return false;
     }
+
+    return false;
+}
 
     /**
      * Calculates required-skill coverage.
@@ -636,18 +641,42 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         }
     }
 
-    private String normalize(
-            String value
-    ) {
+    private String normalize(String value) {
 
-        return value
-                .toLowerCase(Locale.ROOT)
-                .trim()
-                .replaceAll(
-                        "\\s+",
-                        " "
-                );
+    if (value == null) {
+        return "";
     }
+
+    String normalized = value
+            .toLowerCase(Locale.ROOT)
+            .trim()
+            .replaceAll("[^a-z0-9+#.\\- ]", " ")
+            .replaceAll("\\s+", " ");
+
+    return switch (normalized) {
+
+        case "react.js", "reactjs" ->
+                "react";
+
+        case "html5" ->
+                "html";
+
+        case "css3" ->
+                "css";
+
+        case "rest api", "restful api", "restful apis" ->
+                "rest apis";
+
+        case "jwt" ->
+                "jwt authentication";
+
+        case "spring data jpa" ->
+                "jpa";
+
+        default ->
+                normalized;
+    };
+}
 
     private record SemanticMatch(
             double score,
