@@ -21,29 +21,108 @@ public class TechnologyExtractionAiServiceImpl
             String resumeText
     ) {
 
+        if (resumeText == null || resumeText.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Resume text must not be blank"
+            );
+        }
+
         return chatClient
                 .prompt()
                 .system("""
-                        You extract technologies from resumes.
+                        You are a precise resume technology extraction engine.
 
-                        Extract only technologies explicitly supported
-                        by the resume.
+                        Your task is to extract ALL technologies explicitly
+                        mentioned or clearly demonstrated in the resume.
 
-                        Never invent technologies.
+                        IMPORTANT:
+                        - Do not extract only a few technologies.
+                        - Review the ENTIRE resume before producing the result.
+                        - Extract every distinct technology that is explicitly
+                          supported by the resume.
+                        - Never invent a technology.
+                        - Never infer a technology only because another
+                          technology commonly uses it.
 
-                        Do not confuse:
-                        - Java and JavaScript
-                        - Spring and Spring Boot
-                        - SQL and MySQL
-                        - HTML and React
-                        - REST and Spring Boot
+                        Extract technologies from ALL relevant sections,
+                        including:
+                        - Professional Summary
+                        - Skills
+                        - Technical Stack
+                        - Projects
+                        - Experience
+                        - Certifications
+                        - Other technical sections
 
-                        Do not extract soft skills or generic concepts.
+                        Examples of technologies that should be extracted
+                        when explicitly present:
 
-                        Every extracted technology must have evidence
-                        from the resume.
+                        Programming languages:
+                        Java, JavaScript, SQL
 
-                        Use one of these categories:
+                        Backend:
+                        Spring Boot, Spring Security, Spring Data JPA,
+                        Hibernate, JDBC, REST APIs, WebSocket, STOMP
+
+                        Frontend:
+                        React, React.js, Vite, Tailwind CSS, React Router,
+                        React Query, Axios
+
+                        Databases:
+                        MySQL, PostgreSQL
+
+                        Security:
+                        JWT, OAuth2
+
+                        Testing:
+                        JUnit, Mockito
+
+                        Build tools:
+                        Maven, Gradle
+
+                        Version control:
+                        Git, GitHub
+
+                        DevOps / Cloud:
+                        Docker, AWS, Vercel
+
+                        AI / ML:
+                        Spring AI, OpenAI, Gemini, Ollama
+
+                        IMPORTANT NORMALIZATION RULES:
+                        - Java and JavaScript are different technologies.
+                        - SQL and MySQL are different.
+                        - Spring and Spring Boot are different.
+                        - React and React Query are different.
+                        - HTML and CSS are different technologies.
+                        - REST APIs are different from Spring Boot.
+                        - JWT Authentication should be represented as JWT
+                          or JWT Authentication consistently.
+                        - React.js and React should be normalized to React.
+                        - HTML5 should be normalized to HTML.
+                        - CSS3 should be normalized to CSS.
+                        - Spring Data JPA should remain distinct from JPA.
+                        - GitHub should not replace Git.
+                        - Do not merge unrelated technologies.
+
+                        DO NOT extract:
+                        - Soft skills
+                        - Generic concepts
+                        - Job responsibilities
+                        - Education degrees
+                        - Universities
+                        - Personal qualities
+                        - Generic words such as "backend", "frontend",
+                          "database" unless they refer to a specific
+                          technology.
+
+                        Every extracted technology MUST have evidence.
+
+                        The evidence should be a short exact or near-exact
+                        phrase from the resume showing why the technology
+                        was extracted.
+
+                        Use ONLY these categories:
 
                         PROGRAMMING_LANGUAGE
                         BACKEND
@@ -57,10 +136,17 @@ public class TechnologyExtractionAiServiceImpl
                         VERSION_CONTROL
                         AI_ML
                         OTHER
+
+                        Return all supported technologies found in the
+                        complete resume.
                         """)
                 .user(user -> user
                         .text("""
-                                Extract the technologies from this resume.
+                                Extract ALL technologies from the following
+                                resume.
+
+                                Carefully review the complete resume before
+                                producing the final structured result.
 
                                 Resume:
                                 {resumeText}
