@@ -21,9 +21,16 @@ public class RagController {
 
     @GetMapping("/ask")
     public ResponseEntity<ApiResponse<RagResponse>> ask(
-            @RequestParam String question) {
+            @RequestParam String question,
+            @RequestParam(required = false) String topic) {
 
-        RagResponse response = ragService.ask(question);
+        RagResponse response;
+
+        if (topic == null || topic.isBlank()) {
+            response = ragService.ask(question);
+        } else {
+            response = ragService.ask(question, topic);
+        }
 
         return ResponseEntity.ok(
                 new ApiResponse<>(
