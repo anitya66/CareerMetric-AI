@@ -1,5 +1,8 @@
 package com.careermetric.ai.tool;
 
+import com.careermetric.job.dto.JobMatchRequest;
+import com.careermetric.job.dto.JobMatchResponse;
+import com.careermetric.job.service.JobMatchingService;
 import com.careermetric.resume.entity.Resume;
 import com.careermetric.skill.entity.ResumeTechnology;
 import org.springframework.ai.tool.annotation.Tool;
@@ -12,9 +15,14 @@ import java.util.stream.Collectors;
 public class CareerMetricTools {
 
     private final ToolService toolService;
+    private final JobMatchingService jobMatchingService;
 
-    public CareerMetricTools(ToolService toolService) {
+    public CareerMetricTools(
+            ToolService toolService,
+            JobMatchingService jobMatchingService) {
+
         this.toolService = toolService;
+        this.jobMatchingService = jobMatchingService;
     }
 
     @Tool(
@@ -72,14 +80,12 @@ public class CareerMetricTools {
 
                     Use this tool when the user asks to:
                     - summarize their resume
-                    - describe their resume
-                    - explain their resume background
+                    - describe their resume background
                     - identify projects or experience mentioned in their resume
                     - understand what their resume contains
 
-                    Use only information returned by this tool.
-                    Do not invent experience, skills, projects, education,
-                    certifications, or employment history.
+                    Do not invent information that is not present
+                    in the returned resume data.
                     """
     )
     public String getCurrentUserResumeSummary() {
@@ -128,6 +134,154 @@ public class CareerMetricTools {
         }
 
         return result.toString();
+    }
+
+    @Tool(
+            name = "match_current_user_resume_with_job",
+            description = """
+                    Match the authenticated user's resume against a
+                    specific job description.
+
+                    Use this tool when the user asks:
+                    - how well their resume matches a job
+                    - why their job match score is what it is
+                    - what skills are missing for a job
+                    - what required skills they have
+                    - what preferred skills they have
+                    - what skill gaps exist for a job
+
+                    The resume ID and job description ID must refer to
+                    resources accessible to the authenticated user.
+                    The backend performs ownership validation.
+
+                    Use the returned match score, matched skills,
+                    missing skills, and skill gaps as the factual basis
+                    for the answer. Do not invent missing skills.
+                    """
+    )
+    public String matchCurrentUserResumeWithJob(
+            Long resumeId,
+            Long jobDescriptionId) {
+
+        System.out.println(
+                ">>> AI TOOL CALLED: match_current_user_resume_with_job"
+        );
+
+        if (resumeId == null) {
+            return "Resume ID is required.";
+        }
+
+        if (jobDescriptionId == null) {
+            return "Job description ID is required.";
+        }
+
+        JobMatchRequest request =
+                new JobMatchRequest(
+                        resumeId,
+                        jobDescriptionId
+                );
+
+        JobMatchResponse response =
+                jobMatchingService.matchResumeWithJob(request);
+
+        StringBuilder result = new StringBuilder();
+
+        result.append("RESUME ID: ")
+                .append(response.resumeId())
+                .append("\n");
+
+        result.append("JOB DESCRIPTION ID: ")
+                .append(response.jobDescriptionId())
+                .append("\n");
+
+        result.append("MATCH SCORE: ")
+                .append(response.matchScore())
+                .append("%\n");
+
+        result.append("MATCHED SKILLS:\n");
+
+        appendList(
+                result,
+                response.matchedSkills()
+        );
+
+        result.append("MISSING REQUIRED SKILLS:\n");
+
+        appendList(
+                result,
+                response.missingRequiredSkills()
+        );
+
+        result.append("MISSING PREFERRED SKILLS:\n");
+
+        appendList(
+                result,
+                response.missingPreferredSkills()
+        );
+
+        result.append("SKILL GAPS:\n");
+
+        if (response.skillGaps() == null
+                || response.skillGaps().isEmpty()) {
+
+            result.append("No skill gaps identified.\n");
+
+        } else {
+
+            response.skillGaps()
+                    .forEach(skillGap -> {
+
+                        result.append("- Skill: ")
+                                .append(skillGap.skill())
+                                .append("\n");
+
+                        result.append("  Type: ")
+                                .append(skillGap.type())
+                                .append("\n");
+
+                        result.append("  Importance: ")
+                                .append(skillGap.importance())
+                                .append("\n");
+
+                        result.append("  Reason: ")
+                                .append(skillGap.reason())
+                                .append("\n");
+
+                        if (skillGap.suggestedPreparation() != null
+                                && !skillGap.suggestedPreparation().isEmpty()) {
+
+                            result.append(
+                                    "  Suggested Preparation:\n"
+                            );
+
+                            skillGap.suggestedPreparation()
+                                    .forEach(item ->
+                                            result.append("    - ")
+                                                    .append(item)
+                                                    .append("\n")
+                                    );
+                        }
+                    });
+        }
+
+        return result.toString();
+    }
+
+    private void appendList(
+            StringBuilder result,
+            List<String> values) {
+
+        if (values == null || values.isEmpty()) {
+
+            result.append("None\n");
+            return;
+        }
+
+        values.forEach(value ->
+                result.append("- ")
+                        .append(value)
+                        .append("\n")
+        );
     }
 
     private String limitText(
