@@ -4,6 +4,7 @@ import com.careermetric.ai.rag.dto.RagResponse;
 import com.careermetric.ai.rag.dto.RagSource;
 import com.careermetric.knowledge.service.KnowledgeRetrievalService;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
 
@@ -26,26 +27,40 @@ public class RagServiceImpl implements RagService {
     }
 
     @Override
-    public RagResponse ask(String question) {
-        return generateAnswer(question, null);
+    public RagResponse ask(
+            String question,
+            String conversationId) {
+
+        return generateAnswer(
+                question,
+                null,
+                conversationId
+        );
     }
 
     @Override
-    public RagResponse ask(String question, String topic) {
-        return generateAnswer(question, topic);
+    public RagResponse ask(
+            String question,
+            String topic,
+            String conversationId) {
+
+        return generateAnswer(
+                question,
+                topic,
+                conversationId
+        );
     }
 
     private RagResponse generateAnswer(
             String question,
-            String topic) {
+            String topic,
+            String conversationId) {
 
-        if (question == null || question.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Question is required"
-            );
-        }
+        validateQuestion(question);
+        validateConversationId(conversationId);
 
         String cleanQuestion = question.trim();
+        String cleanConversationId = conversationId.trim();
 
         List<Document> documents;
 
@@ -70,34 +85,38 @@ public class RagServiceImpl implements RagService {
         String systemPrompt = """
                 You are CareerMetric AI, an AI career and technical learning assistant.
 
-                Your task is to answer the user's question using the provided
-                knowledge sources.
+                Your task is to answer the user's question using the retrieved
+                knowledge sources and the conversation history when necessary.
 
                 STRICT GROUNDING RULES:
 
-                1. Use the provided knowledge sources as the only factual basis
-                   for your answer.
+                1. Use the retrieved knowledge sources as the factual basis
+                   for technical answers.
 
-                2. Do not use your own general knowledge to fill gaps in the
-                   retrieved context.
+                2. Conversation history may be used to understand references
+                   such as "it", "this", "that", or follow-up questions.
 
-                3. Do not invent facts, explanations, examples, code, or
-                   definitions.
+                3. Do not use previous assistant messages as a replacement
+                   for retrieved knowledge.
 
-                4. If the provided sources do not contain enough information
-                   to answer the question, explicitly state that the available
-                   knowledge base does not contain enough information.
+                4. Do not use your own general knowledge to fill gaps in
+                   the retrieved knowledge context.
 
-                5. Do not assume that a source contains information merely
-                   because its title or topic appears relevant.
+                5. Do not invent facts, explanations, examples, code,
+                   or definitions.
 
-                6. When multiple sources are provided, combine them only when
-                   their content supports the answer.
+                6. If the retrieved knowledge does not contain enough
+                   information to answer the technical question, clearly
+                   state that the available knowledge base does not contain
+                   enough information.
 
-                7. Give a concise but technically useful answer.
+                7. When multiple knowledge sources are provided, combine
+                   them only when their content supports the answer.
 
-                8. Use examples only when they are directly supported by the
-                   retrieved sources.
+                8. Give a clear and technically useful answer.
+
+                9. Use examples only when they are directly supported by
+                   the retrieved knowledge.
                 """;
 
         String userPrompt = """
@@ -105,12 +124,13 @@ public class RagServiceImpl implements RagService {
 
                 %s
 
-                USER QUESTION:
+                CURRENT USER QUESTION:
 
                 %s
 
-                Answer the question using only the retrieved knowledge
-                sources above.
+                Answer the current question using the retrieved knowledge
+                sources above. Use the conversation history only to understand
+                the context of the user's question.
                 """.formatted(
                 context,
                 cleanQuestion
@@ -120,6 +140,12 @@ public class RagServiceImpl implements RagService {
                 .prompt()
                 .system(systemPrompt)
                 .user(userPrompt)
+                .advisors(advisorSpec ->
+                        advisorSpec.param(
+                                ChatMemory.CONVERSATION_ID,
+                                cleanConversationId
+                        )
+                )
                 .call()
                 .content();
 
@@ -150,7 +176,8 @@ public class RagServiceImpl implements RagService {
         );
     }
 
-    private String buildContext(List<Document> documents) {
+    private String buildContext(
+            List<Document> documents) {
 
         if (documents == null || documents.isEmpty()) {
             return "No relevant knowledge was retrieved.";
@@ -192,5 +219,27 @@ public class RagServiceImpl implements RagService {
         }
 
         return context.toString();
+    }
+
+    private void validateQuestion(
+            String question) {
+
+        if (question == null || question.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Question is required"
+            );
+        }
+    }
+
+    private void validateConversationId(
+            String conversationId) {
+
+        if (conversationId == null
+                || conversationId.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Conversation ID is required"
+            );
+        }
     }
 }

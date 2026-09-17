@@ -4,7 +4,14 @@ import com.careermetric.ai.rag.dto.RagResponse;
 
 public interface RagService {
 
-    RagResponse ask(String question);
+    RagResponse ask(
+            String question,
+            String conversationId
+    );
 
-    RagResponse ask(String question, String topic);
+    RagResponse ask(
+            String question,
+            String topic,
+            String conversationId
+    );
 }
