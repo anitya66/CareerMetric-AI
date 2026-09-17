@@ -26,9 +26,13 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     @Override
     public float[] generateEmbedding(String text) {
 
-        validateText(text);
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Text is required for embedding generation"
+            );
+        }
 
-        return embeddingModel.embed(text);
+        return embeddingModel.embed(text.trim());
     }
 
     @Override
@@ -36,11 +40,15 @@ public class EmbeddingServiceImpl implements EmbeddingService {
             String text,
             Map<String, Object> metadata) {
 
-        validateText(text);
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Document text is required"
+            );
+        }
 
         Document document = new Document(
-                text,
-                metadata == null ? Map.of() : metadata
+                text.trim(),
+                metadata
         );
 
         vectorStore.add(List.of(document));
@@ -55,7 +63,19 @@ public class EmbeddingServiceImpl implements EmbeddingService {
             return;
         }
 
-        vectorStore.add(documents);
+        List<Document> validDocuments = documents.stream()
+                .filter(document ->
+                        document != null
+                                && document.getText() != null
+                                && !document.getText().isBlank()
+                )
+                .toList();
+
+        if (validDocuments.isEmpty()) {
+            return;
+        }
+
+        vectorStore.add(validDocuments);
     }
 
     @Override
@@ -63,15 +83,13 @@ public class EmbeddingServiceImpl implements EmbeddingService {
 
         if (filterExpression == null
                 || filterExpression.isBlank()) {
+
             throw new IllegalArgumentException(
-                    "Filter expression must not be blank"
+                    "Filter expression is required"
             );
         }
 
-        vectorStore.delete(
-                new org.springframework.ai.vectorstore.filter.FilterExpressionTextParser()
-                        .parse(filterExpression)
-        );
+        vectorStore.delete(filterExpression);
     }
 
     @Override
@@ -79,7 +97,15 @@ public class EmbeddingServiceImpl implements EmbeddingService {
             String query,
             int topK) {
 
-        return search(query, topK, null);
+        validateSearch(query, topK);
+
+        SearchRequest searchRequest =
+                SearchRequest.builder()
+                        .query(query.trim())
+                        .topK(topK)
+                        .build();
+
+        return vectorStore.similaritySearch(searchRequest);
     }
 
     @Override
@@ -88,35 +114,37 @@ public class EmbeddingServiceImpl implements EmbeddingService {
             int topK,
             String filterExpression) {
 
-        validateText(query);
+        validateSearch(query, topK);
 
-        if (topK <= 0) {
+        if (filterExpression == null
+                || filterExpression.isBlank()) {
+
+            return search(query, topK);
+        }
+
+        SearchRequest searchRequest =
+                SearchRequest.builder()
+                        .query(query.trim())
+                        .topK(topK)
+                        .filterExpression(filterExpression)
+                        .build();
+
+        return vectorStore.similaritySearch(searchRequest);
+    }
+
+    private void validateSearch(
+            String query,
+            int topK) {
+
+        if (query == null || query.isBlank()) {
             throw new IllegalArgumentException(
-                    "topK must be greater than zero"
+                    "Search query is required"
             );
         }
 
-        SearchRequest.Builder builder =
-                SearchRequest.builder()
-                        .query(query)
-                        .topK(topK);
-
-        if (filterExpression != null
-                && !filterExpression.isBlank()) {
-
-            builder.filterExpression(filterExpression);
-        }
-
-        return vectorStore.similaritySearch(
-                builder.build()
-        );
-    }
-
-    private void validateText(String text) {
-
-        if (text == null || text.isBlank()) {
+        if (topK < 1 || topK > 10) {
             throw new IllegalArgumentException(
-                    "Text must not be blank"
+                    "topK must be between 1 and 10"
             );
         }
     }

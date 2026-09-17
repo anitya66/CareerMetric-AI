@@ -12,6 +12,8 @@ import java.util.List;
 @Service
 public class RagServiceImpl implements RagService {
 
+    private static final int DEFAULT_TOP_K = 3;
+
     private final ChatClient chatClient;
     private final KnowledgeRetrievalService retrievalService;
 
@@ -38,7 +40,9 @@ public class RagServiceImpl implements RagService {
             String topic) {
 
         if (question == null || question.isBlank()) {
-            throw new IllegalArgumentException("Question is required");
+            throw new IllegalArgumentException(
+                    "Question is required"
+            );
         }
 
         String cleanQuestion = question.trim();
@@ -49,14 +53,14 @@ public class RagServiceImpl implements RagService {
 
             documents = retrievalService.search(
                     cleanQuestion,
-                    3
+                    DEFAULT_TOP_K
             );
 
         } else {
 
             documents = retrievalService.search(
                     cleanQuestion,
-                    3,
+                    DEFAULT_TOP_K,
                     topic.trim()
             );
         }
@@ -148,7 +152,7 @@ public class RagServiceImpl implements RagService {
 
     private String buildContext(List<Document> documents) {
 
-        if (documents.isEmpty()) {
+        if (documents == null || documents.isEmpty()) {
             return "No relevant knowledge was retrieved.";
         }
 

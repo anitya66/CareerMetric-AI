@@ -9,7 +9,10 @@ public interface EmbeddingService {
 
     float[] generateEmbedding(String text);
 
-    Document store(String text, Map<String, Object> metadata);
+    Document store(
+            String text,
+            Map<String, Object> metadata
+    );
 
     void storeDocuments(List<Document> documents);
 
