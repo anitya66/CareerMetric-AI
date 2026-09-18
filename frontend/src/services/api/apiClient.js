@@ -8,7 +8,10 @@ import {
 const LOGOUT_FLAG = "careermetric_logout_in_progress";
 
 const apiClient = axios.create({
-  baseURL: "http://localhost:8080/api",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://localhost:8080/api",
+
   headers: {
     "Content-Type": "application/json",
   },
@@ -26,7 +29,7 @@ apiClient.interceptors.request.use(
      * FormData requests must not manually use
      * application/json.
      *
-     * The browser/Axios will automatically create:
+     * Axios/browser will automatically set:
      *
      * multipart/form-data; boundary=...
      */
@@ -49,11 +52,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       /*
-       * If the user intentionally logged out,
+       * If logout was intentionally initiated,
        * do not redirect to /login.
-       *
-       * ProtectedRoute will handle the transition
-       * to the public landing page.
        */
       if (!isLogoutInProgress()) {
         clearAuthStorage();
