@@ -2,7 +2,7 @@ const TOKEN_KEY = "careermetric_access_token";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:8080";
+  "http://localhost:8080/api";
 
 /**
  * Get the currently authenticated user's JWT.
@@ -34,14 +34,13 @@ export async function streamCareerCoach({
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/api/ai/career-coach/stream`,
+    `${API_BASE_URL}/ai/career-coach/stream`,
     {
       method: "POST",
 
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
-
         Authorization: `Bearer ${token}`,
       },
 
@@ -117,7 +116,6 @@ export async function streamCareerCoach({
        *
        * data: world
        */
-
       const events =
         buffer.split("\n\n");
 
