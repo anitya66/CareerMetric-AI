@@ -1,12 +1,14 @@
 package com.careermetric.ai.config;
 
 import com.zaxxer.hikari.HikariDataSource;
+
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.pgvector.PgVectorStore;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,14 +26,18 @@ public class PgVectorConfig {
 
     @Bean
     public JdbcTemplate pgVectorJdbcTemplate(
-            @Qualifier("pgVectorDataSource") HikariDataSource dataSource) {
+            @Qualifier("pgVectorDataSource")
+            HikariDataSource dataSource) {
 
         return new JdbcTemplate(dataSource);
     }
 
     @Bean
     public VectorStore vectorStore(
-            @Qualifier("pgVectorJdbcTemplate") JdbcTemplate jdbcTemplate,
+            @Qualifier("pgVectorJdbcTemplate")
+            JdbcTemplate jdbcTemplate,
+
+            @Qualifier("googleGenAiTextEmbedding")
             EmbeddingModel embeddingModel) {
 
         return PgVectorStore.builder(jdbcTemplate, embeddingModel)

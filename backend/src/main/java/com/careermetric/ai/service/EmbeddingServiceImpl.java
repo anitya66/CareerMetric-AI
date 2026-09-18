@@ -4,6 +4,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class EmbeddingServiceImpl implements EmbeddingService {
     private final VectorStore vectorStore;
 
     public EmbeddingServiceImpl(
+            @Qualifier("googleGenAiTextEmbedding")
             EmbeddingModel embeddingModel,
             VectorStore vectorStore) {
 
