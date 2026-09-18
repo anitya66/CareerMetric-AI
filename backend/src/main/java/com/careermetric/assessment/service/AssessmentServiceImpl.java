@@ -27,6 +27,7 @@ import com.careermetric.security.service.CurrentUserService;
 import com.careermetric.skill.entity.Technology;
 import com.careermetric.skill.repository.ResumeTechnologyRepository;
 import com.careermetric.skill.repository.TechnologyRepository;
+import com.careermetric.skill.service.SkillProgressService;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -52,6 +53,7 @@ public class AssessmentServiceImpl
     private final AssessmentAttemptMapper assessmentAttemptMapper;
     private final AssessmentQuestionAiService
             assessmentQuestionAiService;
+    private final SkillProgressService skillProgressService;
 
     public AssessmentServiceImpl(
             AssessmentRepository assessmentRepository,
@@ -63,7 +65,8 @@ public class AssessmentServiceImpl
             CurrentUserService currentUserService,
             AssessmentMapper assessmentMapper,
             AssessmentAttemptMapper assessmentAttemptMapper,
-            AssessmentQuestionAiService assessmentQuestionAiService
+            AssessmentQuestionAiService assessmentQuestionAiService,
+            SkillProgressService skillProgressService
     ) {
         this.assessmentRepository =
                 assessmentRepository;
@@ -94,6 +97,9 @@ public class AssessmentServiceImpl
 
         this.assessmentQuestionAiService =
                 assessmentQuestionAiService;
+
+        this.skillProgressService =
+                skillProgressService;
     }
 
     // ============================================================
@@ -633,6 +639,20 @@ public class AssessmentServiceImpl
 
         /*
          * Step 8:
+         * Recalculate Skill Intelligence.
+         *
+         * The completed assessment score becomes
+         * part of the technology's skill progress.
+         */
+        skillProgressService.recalculateProgress(
+                completedAttempt
+                        .getAssessment()
+                        .getTechnology()
+                        .getId()
+        );
+
+        /*
+         * Step 9:
          * Return result.
          */
         return toResultResponse(

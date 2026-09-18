@@ -26,6 +26,7 @@ import com.careermetric.security.service.CurrentUserService;
 import com.careermetric.skill.entity.Technology;
 import com.careermetric.skill.repository.ResumeTechnologyRepository;
 import com.careermetric.skill.repository.TechnologyRepository;
+import com.careermetric.skill.service.SkillProgressService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,34 +40,36 @@ import java.util.Set;
 
 @Service
 @Transactional
-public class InterviewServiceImpl implements InterviewService {
+public class InterviewServiceImpl
+        implements InterviewService {
 
     private static final int DEFAULT_QUESTION_COUNT = 5;
 
     private final InterviewSessionRepository interviewSessionRepository;
     private final InterviewQuestionRepository interviewQuestionRepository;
     private final InterviewAnswerRepository interviewAnswerRepository;
-    private final InterviewEvaluationRepository interviewEvaluationRepository;
     private final TechnologyRepository technologyRepository;
     private final ResumeTechnologyRepository resumeTechnologyRepository;
     private final InterviewAiService interviewAiService;
     private final CurrentUserService currentUserService;
     private final InterviewMapper interviewMapper;
+    private final InterviewEvaluationRepository interviewEvaluationRepository;
     private final ObjectMapper objectMapper;
+    private final SkillProgressService skillProgressService;
 
     public InterviewServiceImpl(
             InterviewSessionRepository interviewSessionRepository,
             InterviewQuestionRepository interviewQuestionRepository,
             InterviewAnswerRepository interviewAnswerRepository,
-            InterviewEvaluationRepository interviewEvaluationRepository,
             TechnologyRepository technologyRepository,
             ResumeTechnologyRepository resumeTechnologyRepository,
             InterviewAiService interviewAiService,
             CurrentUserService currentUserService,
             InterviewMapper interviewMapper,
-            ObjectMapper objectMapper
+            InterviewEvaluationRepository interviewEvaluationRepository,
+            ObjectMapper objectMapper,
+            SkillProgressService skillProgressService
     ) {
-
         this.interviewSessionRepository =
                 interviewSessionRepository;
 
@@ -75,9 +78,6 @@ public class InterviewServiceImpl implements InterviewService {
 
         this.interviewAnswerRepository =
                 interviewAnswerRepository;
-
-        this.interviewEvaluationRepository =
-                interviewEvaluationRepository;
 
         this.technologyRepository =
                 technologyRepository;
@@ -94,8 +94,14 @@ public class InterviewServiceImpl implements InterviewService {
         this.interviewMapper =
                 interviewMapper;
 
+        this.interviewEvaluationRepository =
+                interviewEvaluationRepository;
+
         this.objectMapper =
                 objectMapper;
+
+        this.skillProgressService =
+                skillProgressService;
     }
 
     // ============================================================
@@ -113,15 +119,24 @@ public class InterviewServiceImpl implements InterviewService {
         User user =
                 currentUserService.getCurrentUser();
 
+        /*
+         * Find requested technology.
+         */
         Technology technology =
                 technologyRepository
-                        .findById(request.technologyId())
+                        .findById(
+                                request.technologyId()
+                        )
                         .orElseThrow(() ->
                                 new IllegalArgumentException(
                                         "Technology not found"
                                 )
                         );
 
+        /*
+         * Verify that the technology exists
+         * in the user's skill profile.
+         */
         boolean ownsTechnology =
                 resumeTechnologyRepository
                         .existsByResumeUserIdAndTechnologyId(
@@ -137,24 +152,38 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
+        /*
+         * Create interview session.
+         */
         InterviewSession session =
                 new InterviewSession();
 
         session.setUser(user);
-        session.setTechnology(technology);
+
+        session.setTechnology(
+                technology
+        );
+
         session.setDifficulty(
                 request.difficulty()
         );
+
         session.setStatus(
                 InterviewStatus.IN_PROGRESS
         );
+
         session.setQuestionCount(
                 DEFAULT_QUESTION_COUNT
         );
 
         session =
-                interviewSessionRepository.save(session);
+                interviewSessionRepository.save(
+                        session
+                );
 
+        /*
+         * Generate AI interview questions.
+         */
         InterviewQuestionAiResult aiResult =
                 interviewAiService.generateQuestions(
                         technology.getName(),
@@ -162,6 +191,9 @@ public class InterviewServiceImpl implements InterviewService {
                         DEFAULT_QUESTION_COUNT
                 );
 
+        /*
+         * Validate AI response.
+         */
         validateGeneratedQuestions(
                 aiResult,
                 DEFAULT_QUESTION_COUNT
@@ -170,6 +202,9 @@ public class InterviewServiceImpl implements InterviewService {
         List<InterviewQuestionAi> questions =
                 aiResult.questions();
 
+        /*
+         * Persist generated questions.
+         */
         for (int i = 0;
              i < questions.size();
              i++) {
@@ -180,10 +215,13 @@ public class InterviewServiceImpl implements InterviewService {
             InterviewQuestion question =
                     new InterviewQuestion();
 
-            question.setInterviewSession(session);
+            question.setInterviewSession(
+                    session
+            );
 
             question.setQuestionText(
-                    aiQuestion.questionText().trim()
+                    aiQuestion.questionText()
+                            .trim()
             );
 
             question.setQuestionNumber(
@@ -229,7 +267,9 @@ public class InterviewServiceImpl implements InterviewService {
     ) {
 
         InterviewSession session =
-                getOwnedInterview(interviewId);
+                getOwnedInterview(
+                        interviewId
+                );
 
         return interviewMapper.toResponse(
                 session
@@ -247,14 +287,18 @@ public class InterviewServiceImpl implements InterviewService {
     ) {
 
         InterviewSession session =
-                getOwnedInterview(interviewId);
+                getOwnedInterview(
+                        interviewId
+                );
 
         return interviewQuestionRepository
                 .findAllByInterviewSessionIdOrderByQuestionNumber(
                         session.getId()
                 )
                 .stream()
-                .map(interviewMapper::toQuestionResponse)
+                .map(
+                        interviewMapper::toQuestionResponse
+                )
                 .toList();
     }
 
@@ -269,12 +313,18 @@ public class InterviewServiceImpl implements InterviewService {
     ) {
 
         InterviewSession session =
-                getOwnedInterview(interviewId);
+                getOwnedInterview(
+                        interviewId
+                );
 
         validateInterviewInProgress(
                 session
         );
 
+        /*
+         * Verify that the question belongs
+         * to this interview.
+         */
         InterviewQuestion question =
                 interviewQuestionRepository
                         .findByIdAndInterviewSessionId(
@@ -287,6 +337,9 @@ public class InterviewServiceImpl implements InterviewService {
                                 )
                         );
 
+        /*
+         * Prevent duplicate answers.
+         */
         if (interviewAnswerRepository
                 .findByInterviewQuestionId(
                         question.getId()
@@ -299,8 +352,19 @@ public class InterviewServiceImpl implements InterviewService {
         }
 
         String answerText =
-                request.answer().trim();
+                request.answer()
+                        .trim();
 
+        if (answerText.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Answer cannot be empty"
+            );
+        }
+
+        /*
+         * Persist candidate answer.
+         */
         InterviewAnswer answer =
                 new InterviewAnswer();
 
@@ -317,6 +381,9 @@ public class InterviewServiceImpl implements InterviewService {
                         answer
                 );
 
+        /*
+         * Ask AI to evaluate the answer.
+         */
         InterviewEvaluationAiResult aiResult =
                 interviewAiService.evaluateAnswer(
                         session.getTechnology().getName(),
@@ -325,10 +392,16 @@ public class InterviewServiceImpl implements InterviewService {
                         answerText
                 );
 
+        /*
+         * Validate AI evaluation.
+         */
         validateEvaluation(
                 aiResult
         );
 
+        /*
+         * Persist evaluation.
+         */
         InterviewEvaluation evaluation =
                 new InterviewEvaluation();
 
@@ -341,7 +414,8 @@ public class InterviewServiceImpl implements InterviewService {
         );
 
         evaluation.setFeedback(
-                aiResult.feedback().trim()
+                aiResult.feedback()
+                        .trim()
         );
 
         evaluation.setStrengths(
@@ -377,18 +451,26 @@ public class InterviewServiceImpl implements InterviewService {
     ) {
 
         InterviewSession session =
-                getOwnedInterview(interviewId);
+                getOwnedInterview(
+                        interviewId
+                );
 
         validateInterviewInProgress(
                 session
         );
 
+        /*
+         * Count generated questions.
+         */
         long totalQuestions =
                 interviewQuestionRepository
                         .countByInterviewSessionId(
                                 interviewId
                         );
 
+        /*
+         * Count submitted answers.
+         */
         long answeredQuestions =
                 interviewAnswerRepository
                         .countByInterviewQuestionInterviewSessionId(
@@ -402,6 +484,10 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
+        /*
+         * Every question must be answered
+         * before completing the interview.
+         */
         if (answeredQuestions != totalQuestions) {
 
             throw new IllegalStateException(
@@ -409,6 +495,9 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
+        /*
+         * Load all answers.
+         */
         List<InterviewAnswer> answers =
                 interviewAnswerRepository
                         .findAllByInterviewQuestionInterviewSessionId(
@@ -422,9 +511,14 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
+        /*
+         * Calculate final interview score
+         * from the individual AI evaluations.
+         */
         int totalScore = 0;
 
-        for (InterviewAnswer answer : answers) {
+        for (InterviewAnswer answer :
+                answers) {
 
             InterviewEvaluation evaluation =
                     interviewEvaluationRepository
@@ -434,19 +528,25 @@ public class InterviewServiceImpl implements InterviewService {
                             .orElseThrow(() ->
                                     new IllegalStateException(
                                             "Evaluation not found for question "
-                                                    + answer.getInterviewQuestion().getId()
+                                                    + answer
+                                                    .getInterviewQuestion()
+                                                    .getId()
                                     )
                             );
 
-            totalScore += evaluation.getScore();
+            totalScore +=
+                    evaluation.getScore();
         }
 
         int finalScore =
                 Math.round(
-                        (float) totalScore /
-                                answers.size()
+                        (float) totalScore
+                                / answers.size()
                 );
 
+        /*
+         * Update interview session.
+         */
         session.setScore(
                 finalScore
         );
@@ -459,12 +559,32 @@ public class InterviewServiceImpl implements InterviewService {
                 LocalDateTime.now()
         );
 
-        interviewSessionRepository.save(
-                session
+        InterviewSession completedSession =
+                interviewSessionRepository.save(
+                        session
+                );
+
+        /*
+         * IMPORTANT:
+         *
+         * Push the completed interview score into
+         * Skill Intelligence.
+         *
+         * Example:
+         *
+         * Assessment = 100
+         * Interview   = 80
+         *
+         * Overall     = 90
+         */
+        skillProgressService.recalculateProgress(
+                completedSession
+                        .getTechnology()
+                        .getId()
         );
 
         return buildResultResponse(
-                session,
+                completedSession,
                 answers
         );
     }
@@ -480,7 +600,9 @@ public class InterviewServiceImpl implements InterviewService {
     ) {
 
         InterviewSession session =
-                getOwnedInterview(interviewId);
+                getOwnedInterview(
+                        interviewId
+                );
 
         if (session.getStatus()
                 != InterviewStatus.COMPLETED) {
@@ -513,7 +635,9 @@ public class InterviewServiceImpl implements InterviewService {
 
         List<InterviewEvaluationResponse> evaluations =
                 answers.stream()
-                        .map(this::toEvaluationResponse)
+                        .map(
+                                this::toEvaluationResponse
+                        )
                         .toList();
 
         return new InterviewResultResponse(
@@ -701,6 +825,41 @@ public class InterviewServiceImpl implements InterviewService {
             throw new IllegalStateException(
                     "AI returned invalid improvements"
             );
+        }
+
+        /*
+         * Validate individual list values.
+         */
+        validateEvaluationList(
+                result.strengths(),
+                "strengths"
+        );
+
+        validateEvaluationList(
+                result.improvements(),
+                "improvements"
+        );
+    }
+
+    // ============================================================
+    // EVALUATION LIST VALIDATION
+    // ============================================================
+
+    private void validateEvaluationList(
+            List<String> values,
+            String fieldName
+    ) {
+
+        for (String value : values) {
+
+            if (value == null ||
+                    value.isBlank()) {
+
+                throw new IllegalStateException(
+                        "AI returned an invalid "
+                                + fieldName
+                );
+            }
         }
     }
 

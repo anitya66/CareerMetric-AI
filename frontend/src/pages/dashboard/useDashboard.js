@@ -12,23 +12,14 @@ import {
 
 export function useDashboard() {
   const currentUser = useCurrentUser();
-
   const resumes = useMyResumes();
-
   const skillDashboard = useSkillDashboard();
-
   const skillProgress = useSkillProgress();
-
   const readiness = useReadiness();
-
   const assessments = useMyAssessments();
-
   const interviews = useMyInterviews();
-
   const jobs = useMyJobs();
-
-  const preparationPlans =
-    useMyPreparationPlans();
+  const preparationPlans = useMyPreparationPlans();
 
   const queries = [
     currentUser,
@@ -50,9 +41,29 @@ export function useDashboard() {
     (query) => query.isFetching
   );
 
+  const hasSuccessfulQuery = queries.some(
+    (query) => query.isSuccess
+  );
+
+  const firstError =
+    queries.find((query) => query.error)?.error ?? null;
+
   const error =
-    queries.find((query) => query.error)?.error ??
-    null;
+    !hasSuccessfulQuery && firstError
+      ? firstError
+      : null;
+
+  const queryErrors = {
+    user: currentUser.error,
+    resumes: resumes.error,
+    skillDashboard: skillDashboard.error,
+    skillProgress: skillProgress.error,
+    readiness: readiness.error,
+    assessments: assessments.error,
+    interviews: interviews.error,
+    jobs: jobs.error,
+    preparationPlans: preparationPlans.error,
+  };
 
   return {
     data: {
@@ -69,11 +80,9 @@ export function useDashboard() {
     },
 
     isLoading,
-
     isFetching,
-
     error,
-
+    queryErrors,
     queries,
   };
 }

@@ -28,22 +28,26 @@ function ResumeDetailPage() {
     error: analysisRequestError,
   } = useResumeAnalysis(resumeId);
 
-  const analyzeMutation = useAnalyzeResume();
+  const analyzeMutation =
+    useAnalyzeResume();
 
   const fileName = getFileName(resume);
   const fileType = getFileType(resume);
   const status = getStatus(resume);
 
-  const extractedText = getExtractedText(resume);
+  const extractedText =
+    getExtractedText(resume);
 
   const hasAnalysis = Boolean(
-    analysis && typeof analysis === "object"
+    analysis &&
+      typeof analysis === "object"
   );
 
-  const analysisErrorMessage = getApiErrorMessage(
-    analysisRequestError,
-    ""
-  );
+  const analysisErrorMessage =
+    getApiErrorMessage(
+      analysisRequestError,
+      ""
+    );
 
   const analysisNotFound =
     analysisError &&
@@ -51,49 +55,43 @@ function ResumeDetailPage() {
       .toLowerCase()
       .includes("not found");
 
-  const score = getOverallScore(analysis);
+  const score =
+    getOverallScore(analysis);
 
   const scoreBreakdown = useMemo(
-    () => getScoreBreakdown(analysis),
+    () =>
+      getScoreBreakdown(analysis),
     [analysis]
   );
 
-  const strengths = getStringList(
-    analysis,
-    [
+  const strengths =
+    getStringList(analysis, [
       "strengths",
       "keyStrengths",
       "strongPoints",
-    ]
-  );
+    ]);
 
-  const weaknesses = getStringList(
-    analysis,
-    [
+  const weaknesses =
+    getStringList(analysis, [
       "weaknesses",
       "areasForImprovement",
       "improvements",
-    ]
-  );
+    ]);
 
-  const recommendations = getStringList(
-    analysis,
-    [
+  const recommendations =
+    getStringList(analysis, [
       "recommendations",
       "suggestions",
       "actionableRecommendations",
-    ]
-  );
+    ]);
 
-  const summary = getStringValue(
-    analysis,
-    [
+  const summary =
+    getStringValue(analysis, [
       "summary",
       "overallSummary",
       "professionalSummary",
       "overview",
-    ]
-  );
+    ]);
 
   async function handleAnalyze() {
     try {
@@ -101,7 +99,7 @@ function ResumeDetailPage() {
         resumeId
       );
     } catch {
-      // Error is rendered from mutation state.
+      // Mutation error is rendered from mutation state.
     }
   }
 
@@ -116,18 +114,26 @@ function ResumeDetailPage() {
           resumeRequestError,
           "Unable to load this resume."
         )}
-        onBack={() => navigate("/resume")}
+        onBack={() =>
+          navigate("/resume")
+        }
       />
     );
   }
 
   return (
     <div className="min-h-screen bg-[#050605]">
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
       <section className="border-b border-white/[0.07]">
-        <div className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+        <div className="mx-auto w-full max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
           <button
             type="button"
-            onClick={() => navigate("/resume")}
+            onClick={() =>
+              navigate("/resume")
+            }
             className="mb-6 text-xs font-medium text-white/35 transition-colors hover:text-[#95d600]"
           >
             ← Resume library
@@ -139,7 +145,7 @@ function ResumeDetailPage() {
                 Resume intelligence
               </p>
 
-              <h1 className="truncate text-2xl font-semibold tracking-[-0.035em] text-[#f4f6f3] sm:text-3xl">
+              <h1 className="break-words text-2xl font-semibold tracking-[-0.035em] text-[#f4f6f3] sm:text-3xl">
                 {fileName}
               </h1>
 
@@ -153,14 +159,29 @@ function ResumeDetailPage() {
                 <span className="text-[10px] text-white/30">
                   {status}
                 </span>
+
+                {resume?.updatedAt && (
+                  <>
+                    <span className="h-1 w-1 rounded-full bg-white/15" />
+
+                    <span className="text-[10px] text-white/25">
+                      Updated{" "}
+                      {formatDate(
+                        resume.updatedAt
+                      )}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
             <button
               type="button"
               onClick={handleAnalyze}
-              disabled={analyzeMutation.isPending}
-              className="rounded-md bg-[#95d600] px-5 py-3 text-xs font-semibold text-[#050605] transition-colors hover:bg-[#a6ed08] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={
+                analyzeMutation.isPending
+              }
+              className="w-full rounded-md bg-[#95d600] px-5 py-3 text-xs font-semibold text-[#050605] transition-colors hover:bg-[#a6ed08] disabled:cursor-not-allowed disabled:opacity-50 sm:w-fit"
             >
               {analyzeMutation.isPending
                 ? "Analyzing resume..."
@@ -172,7 +193,12 @@ function ResumeDetailPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+      {/* =====================================================
+          CONTENT
+      ===================================================== */}
+
+      <main className="mx-auto w-full max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
+        {/* Analysis success/error */}
         {analyzeMutation.isError && (
           <div className="mb-5 rounded-xl border border-red-400/15 bg-red-400/[0.035] px-5 py-4">
             <p className="text-sm font-medium text-red-300/80">
@@ -191,14 +217,20 @@ function ResumeDetailPage() {
         {analyzeMutation.isSuccess && (
           <div className="mb-5 rounded-xl border border-[#95d600]/15 bg-[#95d600]/[0.035] px-5 py-4">
             <p className="text-xs leading-5 text-[#b6e66c]">
-              Resume analysis completed successfully.
+              Resume analysis completed
+              successfully.
             </p>
           </div>
         )}
 
+        {/* ===================================================
+            RESUME CONTENT + SCORE
+        =================================================== */}
+
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.7fr)]">
-          <div className="rounded-xl border border-white/[0.08] bg-[#080a08] p-6 sm:p-8">
-            <div className="flex items-start justify-between gap-4">
+          {/* Extracted resume */}
+          <div className="min-w-0 rounded-xl border border-white/[0.08] bg-[#080a08] p-6 sm:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-white/30">
                   Extracted content
@@ -209,41 +241,51 @@ function ResumeDetailPage() {
                 </h2>
               </div>
 
-              <span className="rounded-full border border-white/[0.07] px-2.5 py-1 text-[10px] text-white/25">
+              <span className="w-fit rounded-full border border-white/[0.07] bg-white/[0.02] px-2.5 py-1 text-[10px] text-white/25">
                 Backend extracted
               </span>
             </div>
 
-            <div className="mt-6 max-h-[620px] overflow-y-auto rounded-lg border border-white/[0.06] bg-[#050605] p-5">
+            <div className="mt-6 max-h-[500px] overflow-y-auto rounded-lg border border-white/[0.06] bg-[#050605] p-4 sm:max-h-[620px] sm:p-5">
               {extractedText ? (
-                <p className="whitespace-pre-wrap text-xs leading-6 text-white/45">
+                <p className="whitespace-pre-wrap break-words text-xs leading-6 text-white/45">
                   {extractedText}
                 </p>
               ) : (
-                <div className="py-10 text-center">
+                <div className="py-10 text-center sm:py-14">
                   <p className="text-sm text-white/45">
-                    No extracted text is available.
+                    No extracted text is
+                    available.
                   </p>
 
-                  <p className="mt-2 text-xs text-white/25">
-                    The backend could not provide readable
-                    resume content.
+                  <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-white/25">
+                    The backend could not
+                    provide readable resume
+                    content.
                   </p>
                 </div>
               )}
             </div>
           </div>
 
+          {/* Score */}
           <ScorePanel
             score={score}
             loading={analysisLoading}
             hasAnalysis={hasAnalysis}
-            analysisNotFound={analysisNotFound}
+            analysisNotFound={
+              analysisNotFound
+            }
           />
         </section>
 
+        {/* ===================================================
+            ANALYSIS RESULTS
+        =================================================== */}
+
         {hasAnalysis && (
           <>
+            {/* Summary */}
             {summary && (
               <section className="mt-5 rounded-xl border border-white/[0.08] bg-[#080a08] p-6 sm:p-8">
                 <SectionHeader
@@ -257,16 +299,21 @@ function ResumeDetailPage() {
               </section>
             )}
 
-            {scoreBreakdown.length > 0 && (
+            {/* Score breakdown */}
+            {scoreBreakdown.length >
+              0 && (
               <section className="mt-5 rounded-xl border border-white/[0.08] bg-[#080a08] p-6 sm:p-8">
                 <SectionHeader
                   eyebrow="Scoring"
                   title="Score breakdown"
                 />
 
-                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {scoreBreakdown.map(
-                    ({ label, value }) => (
+                    ({
+                      label,
+                      value,
+                    }) => (
                       <ScoreBreakdownItem
                         key={label}
                         label={label}
@@ -278,6 +325,7 @@ function ResumeDetailPage() {
               </section>
             )}
 
+            {/* Insights */}
             <section className="mt-5 grid gap-5 lg:grid-cols-3">
               <InsightList
                 eyebrow="Evidence"
@@ -303,29 +351,38 @@ function ResumeDetailPage() {
           </>
         )}
 
+        {/* ===================================================
+            NOT ANALYZED STATE
+        =================================================== */}
+
         {!hasAnalysis &&
           !analysisLoading &&
-          (analysisNotFound || !analysisError) && (
-            <section className="mt-5 rounded-xl border border-dashed border-white/[0.08] bg-[#080a08] p-8 text-center">
-              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-[#95d600]/15 bg-[#95d600]/[0.035] text-[#95d600]">
+          (analysisNotFound ||
+            !analysisError) && (
+            <section className="mt-5 rounded-xl border border-dashed border-white/[0.08] bg-[#080a08] p-7 text-center sm:p-8">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-[#95d600]/15 bg-[#95d600]/[0.035] text-[10px] font-semibold text-[#95d600]">
                 AI
               </div>
 
               <h2 className="mt-4 text-base font-semibold text-white/70">
-                Your resume has not been analyzed yet
+                Your resume has not been
+                analyzed yet
               </h2>
 
               <p className="mx-auto mt-2 max-w-lg text-xs leading-5 text-white/30">
-                Run CareerMetric analysis to generate a controlled
-                resume score, structured insights, and actionable
-                recommendations.
+                Run CareerMetric analysis to
+                generate a controlled resume
+                score, structured insights, and
+                actionable recommendations.
               </p>
 
               <button
                 type="button"
                 onClick={handleAnalyze}
-                disabled={analyzeMutation.isPending}
-                className="mt-5 rounded-md bg-[#95d600] px-5 py-2.5 text-xs font-semibold text-[#050605] transition-colors hover:bg-[#a6ed08] disabled:opacity-50"
+                disabled={
+                  analyzeMutation.isPending
+                }
+                className="mt-5 rounded-md bg-[#95d600] px-5 py-2.5 text-xs font-semibold text-[#050605] transition-colors hover:bg-[#a6ed08] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {analyzeMutation.isPending
                   ? "Analyzing..."
@@ -334,12 +391,17 @@ function ResumeDetailPage() {
             </section>
           )}
 
+        {/* ===================================================
+            ANALYSIS ERROR
+        =================================================== */}
+
         {analysisError &&
           !analysisNotFound &&
           !hasAnalysis && (
             <div className="mt-5 rounded-xl border border-red-400/15 bg-red-400/[0.035] px-5 py-5">
               <p className="text-sm font-medium text-red-300/80">
-                Unable to load resume analysis.
+                Unable to load resume
+                analysis.
               </p>
 
               <p className="mt-1 text-xs leading-5 text-white/30">
@@ -353,6 +415,10 @@ function ResumeDetailPage() {
   );
 }
 
+/* ============================================================
+   SCORE PANEL
+============================================================ */
+
 function ScorePanel({
   score,
   loading,
@@ -364,9 +430,12 @@ function ScorePanel({
       <div className="rounded-xl border border-white/[0.08] bg-[#080a08] p-6 sm:p-8">
         <div className="animate-pulse">
           <div className="h-2.5 w-24 rounded bg-white/[0.05]" />
-          <div className="mt-5 h-20 w-28 rounded bg-white/[0.05]" />
-          <div className="mt-5 h-2.5 w-full rounded bg-white/[0.04]" />
-          <div className="mt-2 h-2.5 w-4/5 rounded bg-white/[0.04]" />
+
+          <div className="mt-6 h-24 w-32 rounded bg-white/[0.05]" />
+
+          <div className="mt-6 h-1.5 w-full rounded bg-white/[0.04]" />
+
+          <div className="mt-3 h-2.5 w-4/5 rounded bg-white/[0.04]" />
         </div>
       </div>
     );
@@ -374,15 +443,32 @@ function ScorePanel({
 
   return (
     <div className="rounded-xl border border-white/[0.08] bg-[#080a08] p-6 sm:p-8">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-white/30">
-        Resume score
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-white/30">
+            Resume score
+          </p>
+
+          <h2 className="mt-1.5 text-base font-semibold text-white/70">
+            Overall evaluation
+          </h2>
+        </div>
+
+        {hasAnalysis &&
+          typeof score ===
+            "number" && (
+            <span className="rounded-full border border-[#95d600]/20 bg-[#95d600]/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#95d600]">
+              Analyzed
+            </span>
+          )}
+      </div>
 
       {hasAnalysis &&
-      typeof score === "number" ? (
+      typeof score ===
+        "number" ? (
         <>
-          <div className="mt-5 flex items-end gap-2">
-            <span className="text-7xl font-semibold tracking-[-0.06em] text-white/90">
+          <div className="mt-7 flex items-end gap-2">
+            <span className="text-6xl font-semibold tracking-[-0.06em] text-white/90 sm:text-7xl">
               {score}
             </span>
 
@@ -397,20 +483,35 @@ function ScorePanel({
               style={{
                 width: `${Math.max(
                   0,
-                  Math.min(score, 100)
+                  Math.min(
+                    score,
+                    100
+                  )
                 )}%`,
               }}
             />
           </div>
 
-          <p className="mt-4 text-xs leading-5 text-white/30">
-            This score is calculated by CareerMetric's backend
-            scoring methodology using structured resume analysis.
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-[10px] uppercase tracking-[0.12em] text-white/20">
+              CareerMetric score
+            </span>
+
+            <span className="text-xs font-medium text-white/45">
+              {getScoreLabel(score)}
+            </span>
+          </div>
+
+          <p className="mt-5 text-xs leading-5 text-white/30">
+            This score is returned by
+            CareerMetric's resume analysis and
+            reflects the structured analysis
+            available for this resume.
           </p>
         </>
       ) : (
         <>
-          <div className="mt-7 text-4xl font-semibold tracking-[-0.04em] text-white/20">
+          <div className="mt-7 text-5xl font-semibold tracking-[-0.05em] text-white/15">
             —
           </div>
 
@@ -425,19 +526,43 @@ function ScorePanel({
   );
 }
 
+/* ============================================================
+   SCORE BREAKDOWN
+============================================================ */
+
 function ScoreBreakdownItem({
   label,
   value,
 }) {
+  const numericValue =
+    Number(value);
+
+  const safeValue =
+    Number.isFinite(
+      numericValue
+    )
+      ? Math.max(
+          0,
+          Math.min(
+            numericValue,
+            100
+          )
+        )
+      : 0;
+
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-white/35">
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0 text-xs text-white/35">
           {label}
         </span>
 
-        <span className="text-sm font-semibold text-white/65">
-          {value}
+        <span className="shrink-0 text-sm font-semibold text-white/65">
+          {Number.isFinite(
+            numericValue
+          )
+            ? numericValue
+            : "—"}
         </span>
       </div>
 
@@ -445,16 +570,17 @@ function ScoreBreakdownItem({
         <div
           className="h-full rounded-full bg-[#95d600]"
           style={{
-            width: `${Math.max(
-              0,
-              Math.min(Number(value) || 0, 100)
-            )}%`,
+            width: `${safeValue}%`,
           }}
         />
       </div>
     </div>
   );
 }
+
+/* ============================================================
+   INSIGHT LIST
+============================================================ */
 
 function InsightList({
   eyebrow,
@@ -463,7 +589,7 @@ function InsightList({
   emptyMessage,
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#080a08] p-6">
+    <div className="min-w-0 rounded-xl border border-white/[0.08] bg-[#080a08] p-6">
       <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-white/30">
         {eyebrow}
       </p>
@@ -473,19 +599,21 @@ function InsightList({
       </h2>
 
       {items.length > 0 ? (
-        <div className="mt-5 space-y-3">
-          {items.map((item, index) => (
-            <div
-              key={`${item}-${index}`}
-              className="flex gap-3"
-            >
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#95d600]" />
+        <div className="mt-5 space-y-4">
+          {items.map(
+            (item, index) => (
+              <div
+                key={`${item}-${index}`}
+                className="flex gap-3"
+              >
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#95d600]" />
 
-              <p className="text-xs leading-5 text-white/40">
-                {item}
-              </p>
-            </div>
-          ))}
+                <p className="min-w-0 break-words text-xs leading-5 text-white/40">
+                  {item}
+                </p>
+              </div>
+            )
+          )}
         </div>
       ) : (
         <p className="mt-5 text-xs leading-5 text-white/25">
@@ -495,6 +623,10 @@ function InsightList({
     </div>
   );
 }
+
+/* ============================================================
+   SECTION HEADER
+============================================================ */
 
 function SectionHeader({
   eyebrow,
@@ -513,24 +645,43 @@ function SectionHeader({
   );
 }
 
+/* ============================================================
+   LOADING
+============================================================ */
+
 function PageSkeleton() {
   return (
-    <div className="min-h-screen animate-pulse bg-[#050605]">
-      <div className="border-b border-white/[0.07] px-5 py-9 sm:px-8 lg:px-10">
+    <div className="min-h-screen bg-[#050605]">
+      <div className="animate-pulse border-b border-white/[0.07] px-5 py-8 sm:px-8 lg:px-10 lg:py-9">
         <div className="h-2.5 w-28 rounded bg-white/[0.05]" />
-        <div className="mt-4 h-8 w-80 max-w-full rounded bg-white/[0.05]" />
+
+        <div className="mt-5 h-8 w-80 max-w-full rounded bg-white/[0.05]" />
+
         <div className="mt-3 h-3 w-44 rounded bg-white/[0.04]" />
       </div>
 
-      <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1500px] px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(300px,0.7fr)]">
           <div className="h-[500px] rounded-xl border border-white/[0.06] bg-[#080a08]" />
+
           <div className="h-[300px] rounded-xl border border-white/[0.06] bg-[#080a08]" />
+        </div>
+
+        <div className="mt-5 h-44 rounded-xl border border-white/[0.06] bg-[#080a08]" />
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <div className="h-64 rounded-xl border border-white/[0.06] bg-[#080a08]" />
+          <div className="h-64 rounded-xl border border-white/[0.06] bg-[#080a08]" />
+          <div className="h-64 rounded-xl border border-white/[0.06] bg-[#080a08]" />
         </div>
       </div>
     </div>
   );
 }
+
+/* ============================================================
+   ERROR
+============================================================ */
 
 function ErrorState({
   message,
@@ -563,6 +714,10 @@ function ErrorState({
   );
 }
 
+/* ============================================================
+   RESUME DATA HELPERS
+============================================================ */
+
 function getExtractedText(resume) {
   return (
     resume?.extractedText ||
@@ -585,14 +740,35 @@ function getOverallScore(analysis) {
     return value;
   }
 
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
-  return Number.isFinite(parsed)
+  return Number.isFinite(
+    parsed
+  )
     ? parsed
     : null;
 }
 
-function getScoreBreakdown(analysis) {
+function getScoreLabel(score) {
+  if (score >= 80) {
+    return "Strong";
+  }
+
+  if (score >= 60) {
+    return "Developing";
+  }
+
+  if (score >= 40) {
+    return "Needs work";
+  }
+
+  return "Needs improvement";
+}
+
+function getScoreBreakdown(
+  analysis
+) {
   const breakdown =
     analysis?.scoreBreakdown ||
     analysis?.breakdown;
@@ -602,8 +778,11 @@ function getScoreBreakdown(analysis) {
   }
 
   if (
-    typeof breakdown === "object" &&
-    !Array.isArray(breakdown)
+    typeof breakdown ===
+      "object" &&
+    !Array.isArray(
+      breakdown
+    )
   ) {
     const labelMap = {
       skills: "Skills",
@@ -615,26 +794,37 @@ function getScoreBreakdown(analysis) {
       formatting: "Formatting",
     };
 
-    return Object.entries(breakdown)
+    return Object.entries(
+      breakdown
+    )
       .filter(
         ([, value]) =>
           value !== null &&
           value !== undefined &&
-          Number.isFinite(Number(value))
+          Number.isFinite(
+            Number(value)
+          )
       )
-      .map(([key, value]) => ({
-        label:
-          labelMap[key] ||
-          formatLabel(key),
-        value: Number(value),
-      }));
+      .map(
+        ([key, value]) => ({
+          label:
+            labelMap[key] ||
+            formatLabel(key),
+          value: Number(value),
+        })
+      );
   }
 
-  if (Array.isArray(breakdown)) {
+  if (
+    Array.isArray(
+      breakdown
+    )
+  ) {
     return breakdown
       .map((item) => {
         if (
-          typeof item !== "object" ||
+          typeof item !==
+            "object" ||
           item === null
         ) {
           return null;
@@ -649,7 +839,12 @@ function getScoreBreakdown(analysis) {
           item.score ??
           item.value;
 
-        if (!label || !Number.isFinite(Number(value))) {
+        if (
+          !label ||
+          !Number.isFinite(
+            Number(value)
+          )
+        ) {
           return null;
         }
 
@@ -673,10 +868,12 @@ function getStringValue(
   }
 
   for (const key of keys) {
-    const value = object?.[key];
+    const value =
+      object?.[key];
 
     if (
-      typeof value === "string" &&
+      typeof value ===
+        "string" &&
       value.trim()
     ) {
       return value.trim();
@@ -695,18 +892,25 @@ function getStringList(
   }
 
   for (const key of keys) {
-    const value = object?.[key];
+    const value =
+      object?.[key];
 
-    if (Array.isArray(value)) {
+    if (
+      Array.isArray(value)
+    ) {
       return value
         .flatMap((item) => {
-          if (typeof item === "string") {
+          if (
+            typeof item ===
+            "string"
+          ) {
             return item.trim();
           }
 
           if (
             item &&
-            typeof item === "object"
+            typeof item ===
+              "object"
           ) {
             return (
               item.text ||
@@ -723,10 +927,13 @@ function getStringList(
     }
 
     if (
-      typeof value === "string" &&
+      typeof value ===
+        "string" &&
       value.trim()
     ) {
-      return [value.trim()];
+      return [
+        value.trim(),
+      ];
     }
   }
 
@@ -740,8 +947,10 @@ function formatLabel(value) {
       /([a-z])([A-Z])/g,
       "$1 $2"
     )
-    .replace(/\b\w/g, (character) =>
-      character.toUpperCase()
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase()
     );
 }
 
@@ -778,7 +987,8 @@ function getFileType(resume) {
     return "DOCX";
   }
 
-  const fileName = getFileName(resume);
+  const fileName =
+    getFileName(resume);
 
   if (
     fileName
@@ -800,7 +1010,8 @@ function getFileType(resume) {
 }
 
 function getStatus(resume) {
-  const status = resume?.status;
+  const status =
+    resume?.status;
 
   if (!status) {
     return "Uploaded";
@@ -809,9 +1020,37 @@ function getStatus(resume) {
   return String(status)
     .replaceAll("_", " ")
     .toLowerCase()
-    .replace(/\b\w/g, (character) =>
-      character.toUpperCase()
+    .replace(
+      /\b\w/g,
+      (character) =>
+        character.toUpperCase()
     );
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }
 
 function getApiErrorMessage(
@@ -819,8 +1058,10 @@ function getApiErrorMessage(
   fallback
 ) {
   return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
+    error?.response?.data
+      ?.message ||
+    error?.response?.data
+      ?.error ||
     error?.message ||
     fallback
   );
