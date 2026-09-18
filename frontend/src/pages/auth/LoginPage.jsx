@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../app/providers/AuthProvider";
 
 function LoginPage() {
-
   const navigate = useNavigate();
 
-  const {
-    login,
-  } = useAuth();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -21,11 +18,7 @@ function LoginPage() {
   const [error, setError] = useState("");
 
   function handleChange(event) {
-
-    const {
-      name,
-      value,
-    } = event.target;
+    const { name, value } = event.target;
 
     setFormData((previous) => ({
       ...previous,
@@ -34,114 +27,188 @@ function LoginPage() {
   }
 
   async function handleSubmit(event) {
-
     event.preventDefault();
 
     setError("");
     setLoading(true);
 
     try {
-
       await login(formData);
 
       navigate("/dashboard", {
         replace: true,
       });
-
     } catch (error) {
-
       setError(
         error.response?.data?.message ||
-        error.message ||
-        "Invalid email or password"
+          error.message ||
+          "Invalid email or password"
       );
-
     } finally {
-
       setLoading(false);
-
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
+    <main className="relative min-h-screen overflow-hidden bg-[#050605] text-[#f4f6f3]">
+      {/* Subtle background accent */}
 
-      <div className="w-full max-w-md">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[#95d600]/[0.025] blur-3xl" />
 
-        <h1 className="text-3xl font-semibold">
-          Welcome back
-        </h1>
+      {/* Top navigation */}
 
-        <p className="mt-2 text-neutral-400">
-          Sign in to your CareerMetric AI account.
-        </p>
-
-        <form
-          onSubmit={handleSubmit}
-          className="mt-8 space-y-5"
-        >
-
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm"
-            >
-              Email
-            </label>
-
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 outline-none focus:border-neutral-600"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm"
-            >
-              Password
-            </label>
-
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 outline-none focus:border-neutral-600"
-              placeholder="Enter your password"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-400">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-white px-4 py-3 font-medium text-black transition hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-60"
+      <header className="relative z-10 border-b border-white/[0.07]">
+        <div className="mx-auto flex h-[72px] w-full max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
+          <Link
+            to="/"
+            className="flex items-center gap-2.5"
+            aria-label="CareerMetric AI home"
           >
-            {loading
-              ? "Signing in..."
-              : "Sign in"}
-          </button>
+            <span className="flex h-8 w-8 items-center justify-center rounded-sm border border-[#95d600]/50 bg-[#95d600]/10 text-sm font-bold text-[#95d600]">
+              C
+            </span>
 
-        </form>
+            <span className="text-[15px] font-semibold tracking-[-0.02em]">
+              CareerMetric
+              <span className="text-[#95d600]"> AI</span>
+            </span>
+          </Link>
 
-      </div>
+          <Link
+            to="/register"
+            className="text-sm text-white/55 transition-colors hover:text-white"
+          >
+            Create account
+          </Link>
+        </div>
+      </header>
 
-    </div>
+      {/* Login */}
+
+      <section className="relative flex min-h-[calc(100vh-73px)] items-center justify-center px-5 py-12 sm:px-8">
+        <div className="w-full max-w-md">
+          {/* Heading */}
+
+          <div className="mb-8 text-center">
+            <p className="text-xs font-semibold tracking-[0.2em] text-[#95d600]">
+              CAREERMETRIC AI
+            </p>
+
+            <h1 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+              Welcome back
+            </h1>
+
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-white/40">
+              Continue building your technical readiness.
+            </p>
+          </div>
+
+          {/* Form container */}
+
+          <div className="border border-white/[0.08] bg-[#0a0c0a] p-6 sm:p-8">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-5"
+            >
+              {/* Email */}
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="mb-2 block text-xs font-medium text-white/60"
+                >
+                  Email address
+                </label>
+
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  className="h-12 w-full rounded-md border border-white/10 bg-[#080a08] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#95d600]/50 focus:ring-1 focus:ring-[#95d600]/20"
+                />
+              </div>
+
+              {/* Password */}
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label
+                    htmlFor="password"
+                    className="block text-xs font-medium text-white/60"
+                  >
+                    Password
+                  </label>
+                </div>
+
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  className="h-12 w-full rounded-md border border-white/10 bg-[#080a08] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#95d600]/50 focus:ring-1 focus:ring-[#95d600]/20"
+                />
+              </div>
+
+              {/* Error */}
+
+              {error && (
+                <div
+                  role="alert"
+                  className="border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm leading-5 text-red-400"
+                >
+                  {error}
+                </div>
+              )}
+
+              {/* Submit */}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="h-12 w-full rounded-md bg-[#95d600] px-4 text-sm font-semibold text-black transition-colors hover:bg-[#a6ed08] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
+            </form>
+
+            {/* Register */}
+
+            <div className="mt-7 border-t border-white/[0.07] pt-6 text-center">
+              <p className="text-sm text-white/35">
+                Don&apos;t have an account?
+              </p>
+
+              <Link
+                to="/register"
+                className="mt-2 inline-block text-sm font-medium text-[#95d600] transition-colors hover:text-[#b6e66c]"
+              >
+                Create your account →
+              </Link>
+            </div>
+          </div>
+
+          {/* Back */}
+
+          <div className="mt-6 text-center">
+            <Link
+              to="/"
+              className="text-xs text-white/30 transition-colors hover:text-white/60"
+            >
+              ← Back to CareerMetric AI
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 

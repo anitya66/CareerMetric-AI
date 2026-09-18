@@ -21,4 +21,10 @@ public interface AssessmentAttemptRepository
             Long assessmentId,
             Long userId
     );
+
+    Optional<AssessmentAttempt>
+    findFirstByUserIdAndAssessmentTechnologyIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+            Long userId,
+            Long technologyId
+    );
 }

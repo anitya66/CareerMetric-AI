@@ -1,29 +1,37 @@
-const TOKEN_KEY = "careerMetric_access_token";
-const USER_KEY = "careerMetric_user";
+const TOKEN_KEY =
+  "careermetric_access_token";
+
+const USER_KEY =
+  "careermetric_user";
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(
+    TOKEN_KEY
+  );
 }
 
 export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function removeToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  localStorage.setItem(
+    TOKEN_KEY,
+    token
+  );
 }
 
 export function getStoredUser() {
-  const user = localStorage.getItem(USER_KEY);
+  const storedUser =
+    localStorage.getItem(
+      USER_KEY
+    );
 
-  if (!user) {
+  if (!storedUser) {
     return null;
   }
 
   try {
-    return JSON.parse(user);
+    return JSON.parse(
+      storedUser
+    );
   } catch {
-    localStorage.removeItem(USER_KEY);
     return null;
   }
 }
@@ -35,11 +43,12 @@ export function setStoredUser(user) {
   );
 }
 
-export function removeStoredUser() {
-  localStorage.removeItem(USER_KEY);
-}
-
 export function clearAuthStorage() {
-  removeToken();
-  removeStoredUser();
+  localStorage.removeItem(
+    TOKEN_KEY
+  );
+
+  localStorage.removeItem(
+    USER_KEY
+  );
 }

@@ -1,7 +1,7 @@
 import {
-  BrowserRouter,
-  Routes,
+  Navigate,
   Route,
+  Routes,
 } from "react-router-dom";
 
 import PublicLayout from "../../layouts/PublicLayout/PublicLayout";
@@ -12,49 +12,84 @@ import ProtectedRoute from "../../components/auth/ProtectedRoute";
 import LandingPage from "../../pages/landing/LandingPage";
 import LoginPage from "../../pages/auth/LoginPage";
 import RegisterPage from "../../pages/auth/RegisterPage";
+
 import DashboardPage from "../../pages/dashboard/DashboardPage";
+import ResumePage from "../../pages/resume/ResumePage";
+import ResumeDetailPage from "../../pages/resume/ResumeDetailPage";
+import CareerCoachPage from "../../pages/careerCoach/CareerCoachPage";
 
 function AppRouter() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <Routes>
 
-        {/* Public Routes */}
-        <Route element={<PublicLayout />}>
+      {/* =========================
+          PUBLIC ROUTES
+      ========================= */}
+
+      <Route element={<PublicLayout />}>
+        <Route
+          path="/"
+          element={<LandingPage />}
+        />
+
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
+
+        <Route
+          path="/register"
+          element={<RegisterPage />}
+        />
+      </Route>
+
+
+      {/* =========================
+          PROTECTED ROUTES
+      ========================= */}
+
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
 
           <Route
-            path="/"
-            element={<LandingPage />}
+            path="/dashboard"
+            element={<DashboardPage />}
           />
 
           <Route
-            path="/login"
-            element={<LoginPage />}
+            path="/resume"
+            element={<ResumePage />}
           />
 
           <Route
-            path="/register"
-            element={<RegisterPage />}
+            path="/resume/:resumeId"
+            element={<ResumeDetailPage />}
+          />
+
+          <Route
+            path="/career-coach"
+            element={<CareerCoachPage />}
           />
 
         </Route>
+      </Route>
 
-        {/* Protected Routes */}
-        <Route element={<ProtectedRoute />}>
 
-          <Route element={<AppLayout />}>
+      {/* =========================
+          FALLBACK
+      ========================= */}
 
-            <Route
-              path="/dashboard"
-              element={<DashboardPage />}
-            />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
+      />
 
-          </Route>
-
-        </Route>
-
-      </Routes>
-    </BrowserRouter>
+    </Routes>
   );
 }
 

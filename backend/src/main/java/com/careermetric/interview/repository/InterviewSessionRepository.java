@@ -15,4 +15,10 @@ public interface InterviewSessionRepository
             Long interviewId,
             Long userId
     );
+
+    Optional<InterviewSession>
+    findFirstByUserIdAndTechnologyIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+            Long userId,
+            Long technologyId
+    );
 }

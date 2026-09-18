@@ -1,8 +1,8 @@
 package com.careermetric.ai.config;
 
 import com.careermetric.ai.tool.CareerMetricTools;
+
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -16,7 +16,6 @@ public class ChatClientConfig {
 
     @Bean
     public ChatMemory chatMemory() {
-
         return MessageWindowChatMemory.builder()
                 .maxMessages(20)
                 .build();
@@ -24,9 +23,8 @@ public class ChatClientConfig {
 
     @Bean
     public ChatClient chatClient(
-            ChatClient.Builder chatClientBuilder,
-            ChatMemory chatMemory,
-            CareerMetricTools careerMetricTools) {
+            ChatClient.Builder chatClientBuilder
+    ) {
 
         return chatClientBuilder
                 .defaultOptions(
@@ -38,12 +36,6 @@ public class ChatClientConfig {
                                         )
                                 )
                 )
-                .defaultAdvisors(
-                        MessageChatMemoryAdvisor
-                                .builder(chatMemory)
-                                .build()
-                )
-                .defaultTools(careerMetricTools)
                 .build();
     }
 }

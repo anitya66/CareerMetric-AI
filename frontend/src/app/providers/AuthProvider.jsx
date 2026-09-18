@@ -5,6 +5,8 @@ import {
   useState,
 } from "react";
 
+import { useNavigate } from "react-router-dom";
+
 import {
   clearAuthStorage,
   getStoredUser,
@@ -20,6 +22,7 @@ import {
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
 
   const [token, setTokenState] = useState(
     getToken()
@@ -34,7 +37,6 @@ export function AuthProvider({ children }) {
   );
 
   async function login(credentials) {
-
     const response = await loginRequest(
       credentials
     );
@@ -45,38 +47,61 @@ export function AuthProvider({ children }) {
     ) {
       throw new Error(
         response?.message ||
-        "Login failed"
+          "Login failed"
       );
     }
 
     const authData = response.data;
 
+    const authenticatedUser = {
+      userId: authData.userId,
+      name: authData.name,
+      email: authData.email,
+      role: authData.role,
+    };
+
+    /*
+     * Persist authentication.
+     */
     setToken(authData.token);
-    setStoredUser({
-      userId: authData.userId,
-      name: authData.name,
-      email: authData.email,
-      role: authData.role,
-    });
 
-    setTokenState(authData.token);
+    setStoredUser(
+      authenticatedUser
+    );
 
-    setUserState({
-      userId: authData.userId,
-      name: authData.name,
-      email: authData.email,
-      role: authData.role,
-    });
+    /*
+     * Update React authentication state.
+     */
+    setTokenState(
+      authData.token
+    );
+
+    setUserState(
+      authenticatedUser
+    );
 
     return authData;
   }
 
   function logout() {
-
+    /*
+     * Clear persistent authentication.
+     */
     clearAuthStorage();
 
+    /*
+     * Clear React authentication state.
+     */
     setTokenState(null);
     setUserState(null);
+
+    /*
+     * Always send the user back to
+     * the public landing page.
+     */
+    navigate("/", {
+      replace: true,
+    });
   }
 
   const value = useMemo(
@@ -95,17 +120,17 @@ export function AuthProvider({ children }) {
   );
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={value}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-
-  const context = useContext(
-    AuthContext
-  );
+  const context =
+    useContext(AuthContext);
 
   if (!context) {
     throw new Error(

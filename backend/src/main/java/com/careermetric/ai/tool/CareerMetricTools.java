@@ -2,6 +2,7 @@ package com.careermetric.ai.tool;
 
 import com.careermetric.job.dto.JobMatchRequest;
 import com.careermetric.job.dto.JobMatchResponse;
+import com.careermetric.job.dto.SkillGap;
 import com.careermetric.job.service.JobMatchingService;
 import com.careermetric.resume.entity.Resume;
 import com.careermetric.skill.entity.ResumeTechnology;
@@ -19,8 +20,8 @@ public class CareerMetricTools {
 
     public CareerMetricTools(
             ToolService toolService,
-            JobMatchingService jobMatchingService) {
-
+            JobMatchingService jobMatchingService
+    ) {
         this.toolService = toolService;
         this.jobMatchingService = jobMatchingService;
     }
@@ -152,6 +153,7 @@ public class CareerMetricTools {
 
                     The resume ID and job description ID must refer to
                     resources accessible to the authenticated user.
+
                     The backend performs ownership validation.
 
                     Use the returned match score, matched skills,
@@ -161,7 +163,8 @@ public class CareerMetricTools {
     )
     public String matchCurrentUserResumeWithJob(
             Long resumeId,
-            Long jobDescriptionId) {
+            Long jobDescriptionId
+    ) {
 
         System.out.println(
                 ">>> AI TOOL CALLED: match_current_user_resume_with_job"
@@ -267,13 +270,45 @@ public class CareerMetricTools {
         return result.toString();
     }
 
+    @Tool(
+            name = "get_current_user_preparation_plan",
+            description = """
+                    Get the authenticated user's current preparation plan.
+
+                    Use this tool when the user asks:
+                    - what they should prepare next
+                    - what is in their preparation plan
+                    - what preparation items are pending
+                    - what preparation items are in progress
+                    - what preparation items are completed
+                    - what skills they should work on
+
+                    Use the returned preparation plan and item statuses
+                    as the factual basis for the answer.
+
+                    Do not invent preparation items, skills, priorities,
+                    statuses, or recommendations that are not supported
+                    by the returned plan.
+                    """
+    )
+    public String getCurrentUserPreparationPlan() {
+
+        System.out.println(
+                ">>> AI TOOL CALLED: get_current_user_preparation_plan"
+        );
+
+        return toolService.getCurrentUserPreparationPlan();
+    }
+
     private void appendList(
             StringBuilder result,
-            List<String> values) {
+            List<String> values
+    ) {
 
         if (values == null || values.isEmpty()) {
 
             result.append("None\n");
+
             return;
         }
 
@@ -286,7 +321,8 @@ public class CareerMetricTools {
 
     private String limitText(
             String text,
-            int maxLength) {
+            int maxLength
+    ) {
 
         if (text.length() <= maxLength) {
             return text;
