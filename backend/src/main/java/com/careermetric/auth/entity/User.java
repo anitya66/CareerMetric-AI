@@ -21,6 +21,10 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(
                         name = "uk_users_email",
                         columnNames = "email"
+                ),
+                @UniqueConstraint(
+                        name = "uk_users_google_subject",
+                        columnNames = "google_subject"
                 )
         }
 )
@@ -36,8 +40,26 @@ public class User {
     @Column(nullable = false, length = 255)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    /*
+     * Password is nullable because Google-authenticated users
+     * do not need a CareerMetric password.
+     */
+    @Column(nullable = true, length = 255)
     private String password;
+
+    /*
+     * Google's stable account identifier (`sub` claim).
+     *
+     * Nullable because normal email/password users do not
+     * have a Google identity linked to their account.
+     */
+    @Column(
+            name = "google_subject",
+            nullable = true,
+            unique = true,
+            length = 255
+    )
+    private String googleSubject;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -52,6 +74,7 @@ public class User {
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
+
         createdAt = now;
         updatedAt = now;
     }
@@ -90,6 +113,14 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getGoogleSubject() {
+        return googleSubject;
+    }
+
+    public void setGoogleSubject(String googleSubject) {
+        this.googleSubject = googleSubject;
     }
 
     public Role getRole() {

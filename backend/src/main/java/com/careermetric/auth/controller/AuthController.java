@@ -1,6 +1,7 @@
 package com.careermetric.auth.controller;
 
 import com.careermetric.auth.dto.AuthResponse;
+import com.careermetric.auth.dto.GoogleLoginRequest;
 import com.careermetric.auth.dto.LoginRequest;
 import com.careermetric.auth.dto.RegisterRequest;
 import com.careermetric.auth.service.AuthService;
@@ -40,6 +41,18 @@ public class AuthController {
 
         return ApiResponse.success(
                 "Login successful",
+                response
+        );
+    }
+
+    @PostMapping("/google")
+    public ApiResponse<AuthResponse> loginWithGoogle(
+            @Valid @RequestBody GoogleLoginRequest request
+    ) {
+        AuthResponse response = authService.loginWithGoogle(request);
+
+        return ApiResponse.success(
+                "Google authentication successful",
                 response
         );
     }

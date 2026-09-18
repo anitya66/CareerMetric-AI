@@ -1,8 +1,11 @@
 import axios from "axios";
+
 import {
   getToken,
   clearAuthStorage,
 } from "../../lib/authStorage";
+
+const LOGOUT_FLAG = "careermetric_logout_in_progress";
 
 const apiClient = axios.create({
   baseURL: "http://localhost:8080/api",
@@ -19,6 +22,19 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    /*
+     * FormData requests must not manually use
+     * application/json.
+     *
+     * The browser/Axios will automatically create:
+     *
+     * multipart/form-data; boundary=...
+     */
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+      delete config.headers["content-type"];
+    }
+
     return config;
   },
   (error) => {
@@ -32,10 +48,19 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      clearAuthStorage();
+      /*
+       * If the user intentionally logged out,
+       * do not redirect to /login.
+       *
+       * ProtectedRoute will handle the transition
+       * to the public landing page.
+       */
+      if (!isLogoutInProgress()) {
+        clearAuthStorage();
 
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
       }
     }
 
@@ -44,3 +69,24 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+/*
+ * Mark that logout was intentionally initiated.
+ */
+export function markLogoutInProgress() {
+  sessionStorage.setItem(LOGOUT_FLAG, "true");
+}
+
+/*
+ * Check whether logout was intentionally initiated.
+ */
+export function isLogoutInProgress() {
+  return sessionStorage.getItem(LOGOUT_FLAG) === "true";
+}
+
+/*
+ * Clear the intentional logout state.
+ */
+export function clearLogoutInProgress() {
+  sessionStorage.removeItem(LOGOUT_FLAG);
+}

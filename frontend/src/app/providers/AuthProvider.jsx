@@ -5,8 +5,6 @@ import {
   useState,
 } from "react";
 
-import { useNavigate } from "react-router-dom";
-
 import {
   clearAuthStorage,
   getStoredUser,
@@ -17,37 +15,23 @@ import {
 
 import {
   login as loginRequest,
+  loginWithGoogle as loginWithGoogleRequest,
 } from "../../services/auth/authService";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const navigate = useNavigate();
+  const [token, setTokenState] = useState(getToken());
+  const [user, setUserState] = useState(getStoredUser());
 
-  const [token, setTokenState] = useState(
-    getToken()
-  );
-
-  const [user, setUserState] = useState(
-    getStoredUser()
-  );
-
-  const isAuthenticated = Boolean(
-    token && user
-  );
+  const isAuthenticated = Boolean(token && user);
 
   async function login(credentials) {
-    const response = await loginRequest(
-      credentials
-    );
+    const response = await loginRequest(credentials);
 
-    if (
-      !response?.success ||
-      !response?.data?.token
-    ) {
+    if (!response?.success || !response?.data?.token) {
       throw new Error(
-        response?.message ||
-          "Login failed"
+        response?.message || "Login failed"
       );
     }
 
@@ -60,48 +44,46 @@ export function AuthProvider({ children }) {
       role: authData.role,
     };
 
-    /*
-     * Persist authentication.
-     */
     setToken(authData.token);
+    setStoredUser(authenticatedUser);
 
-    setStoredUser(
-      authenticatedUser
-    );
+    setTokenState(authData.token);
+    setUserState(authenticatedUser);
 
-    /*
-     * Update React authentication state.
-     */
-    setTokenState(
-      authData.token
-    );
+    return authData;
+  }
 
-    setUserState(
-      authenticatedUser
-    );
+  async function loginWithGoogle(idToken) {
+    const response = await loginWithGoogleRequest(idToken);
+
+    if (!response?.success || !response?.data?.token) {
+      throw new Error(
+        response?.message || "Google login failed"
+      );
+    }
+
+    const authData = response.data;
+
+    const authenticatedUser = {
+      userId: authData.userId,
+      name: authData.name,
+      email: authData.email,
+      role: authData.role,
+    };
+
+    setToken(authData.token);
+    setStoredUser(authenticatedUser);
+
+    setTokenState(authData.token);
+    setUserState(authenticatedUser);
 
     return authData;
   }
 
   function logout() {
-    /*
-     * Clear persistent authentication.
-     */
     clearAuthStorage();
-
-    /*
-     * Clear React authentication state.
-     */
     setTokenState(null);
     setUserState(null);
-
-    /*
-     * Always send the user back to
-     * the public landing page.
-     */
-    navigate("/", {
-      replace: true,
-    });
   }
 
   const value = useMemo(
@@ -110,27 +92,21 @@ export function AuthProvider({ children }) {
       user,
       isAuthenticated,
       login,
+      loginWithGoogle,
       logout,
     }),
-    [
-      token,
-      user,
-      isAuthenticated,
-    ]
+    [token, user, isAuthenticated]
   );
 
   return (
-    <AuthContext.Provider
-      value={value}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context =
-    useContext(AuthContext);
+  const context = useContext(AuthContext);
 
   if (!context) {
     throw new Error(

@@ -11,7 +11,6 @@ import ProtectedRoute from "../../components/auth/ProtectedRoute";
 import LandingPage from "../../pages/landing/LandingPage";
 import LoginPage from "../../pages/auth/LoginPage";
 import RegisterPage from "../../pages/auth/RegisterPage";
-
 import DashboardPage from "../../pages/dashboard/DashboardPage";
 
 import ResumePage from "../../pages/resume/ResumePage";
@@ -25,13 +24,24 @@ import AssessmentDetailPage from "../../pages/assessments/AssessmentDetailPage";
 import AssessmentAttemptPage from "../../pages/assessments/AssessmentAttemptPage";
 import AssessmentResultPage from "../../pages/assessments/AssessmentResultPage";
 
+import InterviewPage from "../../pages/interviews/InterviewPage";
+import InterviewDetailPage from "../../pages/interviews/InterviewDetailPage";
+import InterviewQuestionsPage from "../../pages/interviews/InterviewQuestionsPage";
+import InterviewResultPage from "../../pages/interviews/InterviewResultPage";
+
+import JobPage from "../../pages/jobs/JobPage";
+import JobDetailPage from "../../pages/jobs/JobDetailPage";
+
+import PreparationPlanPage from "../../pages/preparation/PreparationPlanPage";
+import PreparationPlanDetailPage from "../../pages/preparation/PreparationPlanDetailPage";
+
 import CareerCoachPage from "../../pages/careerCoach/CareerCoachPage";
 
 function AppRouter() {
   return (
     <Routes>
       {/* ======================================================
-          PUBLIC
+          PUBLIC ROUTES
       ====================================================== */}
 
       <Route element={<PublicLayout />}>
@@ -52,24 +62,19 @@ function AppRouter() {
       </Route>
 
       {/* ======================================================
-          PROTECTED
+          PROTECTED ROUTES
       ====================================================== */}
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-
-          {/* ==================================================
-              DASHBOARD
-          ================================================== */}
+          {/* ==================== DASHBOARD ==================== */}
 
           <Route
             path="/dashboard"
             element={<DashboardPage />}
           />
 
-          {/* ==================================================
-              RESUME
-          ================================================== */}
+          {/* ====================== RESUME ===================== */}
 
           <Route
             path="/resume"
@@ -81,9 +86,7 @@ function AppRouter() {
             element={<ResumeDetailPage />}
           />
 
-          {/* ==================================================
-              SKILL INTELLIGENCE
-          ================================================== */}
+          {/* ====================== SKILLS ===================== */}
 
           <Route
             path="/skills"
@@ -95,9 +98,7 @@ function AppRouter() {
             element={<SkillDetailPage />}
           />
 
-          {/* ==================================================
-              ASSESSMENTS
-          ================================================== */}
+          {/* ==================== ASSESSMENTS ================== */}
 
           <Route
             path="/assessments"
@@ -109,33 +110,68 @@ function AppRouter() {
             element={<AssessmentDetailPage />}
           />
 
-          {/* ==================================================
-              ASSESSMENT ATTEMPT
-          ================================================== */}
-
           <Route
             path="/assessments/:assessmentId/attempt/:attemptId"
             element={<AssessmentAttemptPage />}
           />
-
-          {/* ==================================================
-              ASSESSMENT RESULT
-          ================================================== */}
 
           <Route
             path="/assessments/:assessmentId/attempt/:attemptId/result"
             element={<AssessmentResultPage />}
           />
 
-          {/* ==================================================
-              CAREER COACH
-          ================================================== */}
+          {/* ===================== INTERVIEWS ================== */}
+
+          <Route
+            path="/interviews"
+            element={<InterviewPage />}
+          />
+
+          <Route
+            path="/interviews/:interviewId"
+            element={<InterviewDetailPage />}
+          />
+
+          <Route
+            path="/interviews/:interviewId/questions"
+            element={<InterviewQuestionsPage />}
+          />
+
+          <Route
+            path="/interviews/:interviewId/result"
+            element={<InterviewResultPage />}
+          />
+
+          {/* ======================== JOBS ===================== */}
+
+          <Route
+            path="/jobs"
+            element={<JobPage />}
+          />
+
+          <Route
+            path="/jobs/:jobDescriptionId"
+            element={<JobDetailPage />}
+          />
+
+          {/* ================= PREPARATION PLANS =============== */}
+
+          <Route
+            path="/preparation"
+            element={<PreparationPlanPage />}
+          />
+
+          <Route
+            path="/preparation/:planId"
+            element={<PreparationPlanDetailPage />}
+          />
+
+          {/* ==================== CAREER COACH ================= */}
 
           <Route
             path="/career-coach"
             element={<CareerCoachPage />}
           />
-
         </Route>
       </Route>
 

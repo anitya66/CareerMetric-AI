@@ -2,8 +2,14 @@ package com.careermetric.ai.service;
 
 import com.careermetric.ai.dto.InterviewEvaluationAiResult;
 import com.careermetric.ai.dto.InterviewQuestionAiResult;
+
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.stereotype.Service;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 @Service
 public class InterviewAiServiceImpl implements InterviewAiService {
@@ -36,7 +42,6 @@ public class InterviewAiServiceImpl implements InterviewAiService {
                 %s
 
                 Rules:
-
                 1. Generate exactly %d questions.
                 2. Questions must be open-ended technical interview questions.
                 3. Questions must be relevant to the requested technology.
@@ -64,7 +69,9 @@ public class InterviewAiServiceImpl implements InterviewAiService {
                 .user(prompt)
                 .call()
                 .entity(
-                        InterviewQuestionAiResult.class,
+                        groqCompatibleConverter(
+                                InterviewQuestionAiResult.class
+                        ),
                         spec -> spec
                                 .useProviderStructuredOutput()
                                 .validateSchema()
@@ -86,54 +93,31 @@ public class InterviewAiServiceImpl implements InterviewAiService {
                 Technology:
                 %s
 
-                Interview difficulty:
+                Difficulty:
                 %s
 
-                Interview question:
+                Interview Question:
                 %s
 
-                Candidate answer:
+                Candidate Answer:
                 %s
 
-                Evaluate ONLY the candidate's answer to this question.
+                Evaluate the candidate answer objectively.
 
-                Evaluation criteria:
-
-                1. Technical correctness.
-                2. Relevance to the question.
-                3. Understanding of the concept.
-                4. Explanation quality.
-                5. Practical understanding where applicable.
-
-                Scoring:
-
-                0-20:
-                Completely incorrect, irrelevant, or almost no understanding.
-
-                21-40:
-                Significant gaps or mostly incorrect understanding.
-
-                41-60:
-                Basic understanding but important gaps exist.
-
-                61-80:
-                Good understanding with minor gaps.
-
-                81-100:
-                Strong and accurate understanding with a clear explanation.
-
-                Important rules:
-
-                1. Score must be between 0 and 100.
-                2. Do not penalize the candidate for being a fresher.
-                3. Do not require professional experience.
-                4. Do not assume information that is not present in the answer.
-                5. Do not invent candidate experience.
-                6. Feedback must be specific and useful.
-                7. Strengths must describe what the candidate did well.
-                8. Improvements must describe concrete areas to improve.
-                9. Do not rewrite the candidate's entire answer.
-                10. Return only the requested structured output.
+                Rules:
+                1. Score the answer from 0 to 100.
+                2. The score must be an integer.
+                3. Evaluate technical correctness.
+                4. Evaluate conceptual understanding.
+                5. Evaluate relevance to the question.
+                6. Evaluate whether important concepts are missing.
+                7. Do not assume knowledge that is not present in the answer.
+                8. Do not reward unrelated information.
+                9. Identify specific strengths.
+                10. Identify specific improvements.
+                11. Feedback must be concise and useful for interview preparation.
+                12. Do not invent facts about the candidate.
+                13. Return only the requested structured output.
                 """.formatted(
                 technologyName,
                 difficulty,
@@ -146,10 +130,70 @@ public class InterviewAiServiceImpl implements InterviewAiService {
                 .user(prompt)
                 .call()
                 .entity(
-                        InterviewEvaluationAiResult.class,
+                        groqCompatibleConverter(
+                                InterviewEvaluationAiResult.class
+                        ),
                         spec -> spec
                                 .useProviderStructuredOutput()
                                 .validateSchema()
                 );
+    }
+
+    private <T> BeanOutputConverter<T> groqCompatibleConverter(
+            Class<T> targetType
+    ) {
+
+        return new BeanOutputConverter<T>(targetType) {
+
+            @Override
+            protected String generateSchema() {
+
+                String generatedSchema = super.generateSchema();
+
+                try {
+                    JsonMapper jsonMapper = JsonMapper.builder().build();
+
+                    JsonNode root = jsonMapper.readTree(generatedSchema);
+
+                    removeFormatProperties(root);
+
+                    return jsonMapper.writeValueAsString(root);
+
+                } catch (Exception exception) {
+
+                    throw new IllegalStateException(
+                            "Unable to create Groq-compatible JSON schema",
+                            exception
+                    );
+                }
+            }
+        };
+    }
+
+    private void removeFormatProperties(JsonNode node) {
+
+        if (node == null) {
+            return;
+        }
+
+        if (node.isObject()) {
+
+            ObjectNode objectNode = (ObjectNode) node;
+
+            objectNode.remove("format");
+
+            objectNode.forEach(
+                    this::removeFormatProperties
+            );
+
+            return;
+        }
+
+        if (node.isArray()) {
+
+            node.forEach(
+                    this::removeFormatProperties
+            );
+        }
     }
 }

@@ -1,12 +1,14 @@
 import { useState } from "react";
+
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../app/providers/AuthProvider";
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 
 function LoginPage() {
   const navigate = useNavigate();
 
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -14,7 +16,7 @@ function LoginPage() {
   });
 
   const [loading, setLoading] = useState(false);
-
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
   function handleChange(event) {
@@ -49,14 +51,45 @@ function LoginPage() {
     }
   }
 
+  async function handleGoogleSuccess(idToken) {
+    setError("");
+    setGoogleLoading(true);
+
+    try {
+      await loginWithGoogle(idToken);
+
+      navigate("/dashboard", {
+        replace: true,
+      });
+    } catch (error) {
+      setError(
+        error.response?.data?.message ||
+          error.message ||
+          "Google sign-in failed. Please try again."
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
+  function handleGoogleError(error) {
+    setGoogleLoading(false);
+
+    setError(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Google sign-in failed. Please try again."
+    );
+  }
+
+  const isLoading = loading || googleLoading;
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#050605] text-[#f4f6f3]">
       {/* Subtle background accent */}
-
       <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[#95d600]/[0.025] blur-3xl" />
 
       {/* Top navigation */}
-
       <header className="relative z-10 border-b border-white/[0.07]">
         <div className="mx-auto flex h-[72px] w-full max-w-7xl items-center justify-between px-5 sm:px-8 lg:px-10">
           <Link
@@ -84,11 +117,9 @@ function LoginPage() {
       </header>
 
       {/* Login */}
-
       <section className="relative flex min-h-[calc(100vh-73px)] items-center justify-center px-5 py-12 sm:px-8">
         <div className="w-full max-w-md">
           {/* Heading */}
-
           <div className="mb-8 text-center">
             <p className="text-xs font-semibold tracking-[0.2em] text-[#95d600]">
               CAREERMETRIC AI
@@ -104,14 +135,12 @@ function LoginPage() {
           </div>
 
           {/* Form container */}
-
           <div className="border border-white/[0.08] bg-[#0a0c0a] p-6 sm:p-8">
             <form
               onSubmit={handleSubmit}
               className="space-y-5"
             >
               {/* Email */}
-
               <div>
                 <label
                   htmlFor="email"
@@ -129,12 +158,12 @@ function LoginPage() {
                   required
                   autoComplete="email"
                   placeholder="you@example.com"
-                  className="h-12 w-full rounded-md border border-white/10 bg-[#080a08] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#95d600]/50 focus:ring-1 focus:ring-[#95d600]/20"
+                  disabled={isLoading}
+                  className="h-12 w-full rounded-md border border-white/10 bg-[#080a08] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#95d600]/50 focus:ring-1 focus:ring-[#95d600]/20 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
 
               {/* Password */}
-
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label
@@ -154,12 +183,12 @@ function LoginPage() {
                   required
                   autoComplete="current-password"
                   placeholder="Enter your password"
-                  className="h-12 w-full rounded-md border border-white/10 bg-[#080a08] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#95d600]/50 focus:ring-1 focus:ring-[#95d600]/20"
+                  disabled={isLoading}
+                  className="h-12 w-full rounded-md border border-white/10 bg-[#080a08] px-4 text-sm text-white outline-none transition-colors placeholder:text-white/20 focus:border-[#95d600]/50 focus:ring-1 focus:ring-[#95d600]/20 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
 
               {/* Error */}
-
               {error && (
                 <div
                   role="alert"
@@ -170,18 +199,44 @@ function LoginPage() {
               )}
 
               {/* Submit */}
-
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoading}
                 className="h-12 w-full rounded-md bg-[#95d600] px-4 text-sm font-semibold text-black transition-colors hover:bg-[#a6ed08] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? "Signing in..." : "Sign in"}
               </button>
             </form>
 
-            {/* Register */}
+            {/* Divider */}
+            <div className="my-6 flex items-center gap-4">
+              <div className="h-px flex-1 bg-white/[0.07]" />
 
+              <span className="text-xs text-white/30">
+                OR
+              </span>
+
+              <div className="h-px flex-1 bg-white/[0.07]" />
+            </div>
+
+            {/* Google Sign-In */}
+            <div className="relative">
+              {googleLoading && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-[#0a0c0a]/70">
+                  <span className="text-sm text-white/50">
+                    Signing in with Google...
+                  </span>
+                </div>
+              )}
+
+              <GoogleSignInButton
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                text="signin_with"
+              />
+            </div>
+
+            {/* Register */}
             <div className="mt-7 border-t border-white/[0.07] pt-6 text-center">
               <p className="text-sm text-white/35">
                 Don&apos;t have an account?
@@ -197,7 +252,6 @@ function LoginPage() {
           </div>
 
           {/* Back */}
-
           <div className="mt-6 text-center">
             <Link
               to="/"
